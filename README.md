@@ -1,33 +1,10 @@
-### desar Manufacturing
+# DESAR Manufacturing - ERPNext Custom App
 
-Manufacturing flow
+Custom Frappe/ERPNext app for DESAR Manufacturing operations.
 
-### Installation
-
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
-
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app desar_manufacturing
-```
-
-### Contributing
-
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
-
-```bash
-cd apps/desar_manufacturing
-pre-commit install
-```
-
-Pre-commit is configured to use the following tools for checking and formatting your code:
-
-- ruff
-- eslint
-- prettier
-- pyupgrade
-
-### License
-
-mit
+## Modules
+- Roll Ticket management
+- Design Master
+- Warp/Weft Recipes
+- Grade Yield Analysis reports
+- Repack & BOM services
