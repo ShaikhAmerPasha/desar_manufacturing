@@ -1,0 +1,34 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-05-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["naming_series","recipe_name","design_no","size","total_ends","column_break","total_yarn_kg","section_items","yarn_items"],
+ "fields": [
+  {"fieldname":"naming_series","fieldtype":"Select","label":"Series","options":"WR-.YYYY.-.####","set_only_once":1},
+  {"fieldname":"recipe_name","fieldtype":"Data","label":"Recipe Name","reqd":1,"in_list_view":1,"bold":1},
+  {"fieldname":"design_no","fieldtype":"Data","label":"Design No.","in_list_view":1},
+  {"fieldname":"size","fieldtype":"Data","label":"Size","in_list_view":1},
+  {"fieldname":"total_ends","fieldtype":"Int","label":"Total Ends"},
+  {"fieldname":"column_break","fieldtype":"Column Break"},
+  {"fieldname":"total_yarn_kg","fieldtype":"Float","label":"Total Yarn (Kg)","read_only":1},
+  {"fieldname":"section_items","fieldtype":"Section Break","label":"Yarn Items"},
+  {"fieldname":"yarn_items","fieldtype":"Table","label":"Yarn Items","options":"Warp Recipe Item","reqd":1}
+ ],
+ "modified": "2026-05-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Desar Manufacturing",
+ "name": "Warp Recipe",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {"create":1,"delete":1,"read":1,"report":1,"role":"Manufacturing Manager","write":1},
+  {"create":1,"read":1,"report":1,"role":"Manufacturing User","write":1}
+ ],
+ "search_fields": "recipe_name,design_no",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "recipe_name",
+ "track_changes": 1
+}

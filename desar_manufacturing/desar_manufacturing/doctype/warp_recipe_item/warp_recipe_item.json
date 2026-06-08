@@ -1,0 +1,20 @@
+{
+ "actions": [],
+ "creation": "2026-05-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": ["yarn_item","yarn_count","color","ends","qty_kg"],
+ "fields": [
+  {"fieldname":"yarn_item","fieldtype":"Link","label":"Yarn Item","options":"Item","reqd":1,"in_list_view":1},
+  {"fieldname":"yarn_count","fieldtype":"Data","label":"Yarn Count","in_list_view":1,"description":"e.g. 34/2, 100/2"},
+  {"fieldname":"color","fieldtype":"Data","label":"Color","in_list_view":1},
+  {"fieldname":"ends","fieldtype":"Int","label":"Ends","in_list_view":1},
+  {"fieldname":"qty_kg","fieldtype":"Float","label":"Qty (Kg)","reqd":1,"in_list_view":1}
+ ],
+ "modified": "2026-05-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Desar Manufacturing",
+ "name": "Warp Recipe Item",
+ "owner": "Administrator"
+}

@@ -1,0 +1,14 @@
+/* DESAR Manufacturing CSS */
+/* Roll Ticket status colors */
+.indicator-pill[data-indicator="In Grey Store"] {
+    --indicator-color: #2490ef;
+}
+.indicator-pill[data-indicator="In Finishing"] {
+    --indicator-color: #ff6b6b;
+}
+.indicator-pill[data-indicator="In Packing"] {
+    --indicator-color: #fcb410;
+}
+.indicator-pill[data-indicator="Completed"] {
+    --indicator-color: #38a169;
+}
