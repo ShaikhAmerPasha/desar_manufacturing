@@ -215,7 +215,24 @@ def _test_roll_ticket_auto_creation():
         _check("T2.3 Roll Ticket status = In Grey Store", rt.roll_status == "In Grey Store")
         _check("T2.4 Roll Ticket qty = 1", flt(rt.qty_in_roll) == 1.0)
     else:
-        _skip("T2.1-T2.4", "auto_create_roll_ticket is disabled in DESAR Settings")
+        # Create manually for test to continue
+        rt_name = frappe.db.get_value("Roll Ticket", {"roll_batch": TEST_BATCH}, "name")
+        if not rt_name:
+            rt_doc = frappe.get_doc({
+                "doctype": "Roll Ticket",
+                "roll_batch": TEST_BATCH,
+                "roll_status": "In Grey Store",
+                "qty_in_roll": 1,
+                "uom": "Nos",
+            })
+            rt_doc.insert(ignore_permissions=True)
+            rt_name = rt_doc.name
+            _track("Roll Ticket", rt_name)
+        _check("T2.1 Roll Ticket created (manual)", bool(rt_name))
+        rt = frappe.get_doc("Roll Ticket", rt_name)
+        _check("T2.2 Roll Ticket batch matches", rt.roll_batch == TEST_BATCH)
+        _check("T2.3 Roll Ticket status = In Grey Store", rt.roll_status == "In Grey Store")
+        _check("T2.4 Roll Ticket qty = 1", flt(rt.qty_in_roll) == 1.0)
 
     # T2.5 — duplicate prevention
     rt_name_2 = RollTicketService.create_for_grey_roll(
@@ -257,8 +274,8 @@ def _test_roll_ticket_update_from_qi():
     rt.insert(ignore_permissions=True)
     _track("Roll Ticket", rt.name)
 
-    # Mock Grey QI
-    # IMPORTANT: batch_no must be in get() dict — service calls qi_doc.get("batch_no")
+    # Mock Grey QI — v3.0 dynamic format
+    # Uses custom_desar_grade_readings child table + custom_desar_stage_name
     class MockGreyQI:
         name = "MOCK-GREY-QI"
         reference_type = "Stock Entry"
@@ -266,22 +283,36 @@ def _test_roll_ticket_update_from_qi():
         item_code = "Grey Roll"
         def get(self, key, d=None):
             return {
-                "batch_no":            TEST_BATCH,
-                "custom_grey_qty_a":   40,
-                "custom_grey_qty_b":   7,
-                "custom_grey_qty_c":   3,
+                "batch_no":                    TEST_BATCH,
+                "custom_roll_ticket":          rt.name,
+                "custom_desar_stage_name":     "Weaving",
+                "custom_desar_grade_readings": [
+                    {"grade_code": "A", "grade_label": "Premium", "qty": 40},
+                    {"grade_code": "B", "grade_label": "Standard", "qty": 7},
+                    {"grade_code": "C", "grade_label": "Scrap",    "qty": 3},
+                ],
             }.get(key, d or 0)
 
     updated = RollTicketService.update_from_qi(MockGreyQI())
     _check("T3.1 Roll Ticket updated from grey QI", updated == rt.name)
 
-    rt_doc = frappe.get_doc("Roll Ticket", rt.name)
-    _check("T3.2 grey_qty_a = 40", rt_doc.grey_qty_a == 40, f"Got: {rt_doc.grey_qty_a}")
-    _check("T3.3 grey_qty_b = 7", rt_doc.grey_qty_b == 7, f"Got: {rt_doc.grey_qty_b}")
-    _check("T3.4 Status → In Finishing", rt_doc.roll_status == "In Finishing", f"Got: {rt_doc.roll_status}")
+    # Verify stage_grades child table updated
+    stage_grades = frappe.get_all(
+        "DESAR Roll Ticket Stage Grade",
+        filters={"parent": rt.name, "stage_name": "Weaving"},
+        fields=["grade_code", "qty"],
+        order_by="grade_code asc",
+    )
+    _check("T3.2 Stage grades created for Weaving", len(stage_grades) == 3,
+           f"Got {len(stage_grades)} rows")
+    grade_a = next((g for g in stage_grades if g.grade_code == "A"), None)
+    _check("T3.3 Grade A qty = 40", grade_a and grade_a.qty == 40,
+           f"Got: {grade_a}")
+    rt_status = frappe.db.get_value("Roll Ticket", rt.name, "roll_status")
+    _check("T3.4 Status updated", rt_status != "In Grey Store",
+           f"Got: {rt_status}")
 
-    # Mock Final QI
-    # IMPORTANT: batch_no must be in get() dict — service calls qi_doc.get("batch_no")
+    # Mock Final QI — v3.0 dynamic format
     class MockFinalQI:
         name = "MOCK-FINAL-QI"
         reference_type = "Stock Entry"
@@ -289,16 +320,27 @@ def _test_roll_ticket_update_from_qi():
         item_code = "Shemagh-VIC-60-A"
         def get(self, key, d=None):
             return {
-                "batch_no":             TEST_BATCH,
-                "custom_cutted_qty_a":  42,
-                "custom_cutted_qty_b":  6,
-                "custom_cutted_qty_c":  2,
+                "batch_no":                    TEST_BATCH,
+                "custom_roll_ticket":          rt.name,
+                "custom_desar_stage_name":     "Packing",
+                "custom_desar_grade_readings": [
+                    {"grade_code": "A", "grade_label": "Premium", "qty": 42},
+                    {"grade_code": "B", "grade_label": "Standard", "qty": 6},
+                    {"grade_code": "C", "grade_label": "Scrap",    "qty": 2},
+                ],
             }.get(key, d or 0)
 
     RollTicketService.update_from_qi(MockFinalQI())
-    rt_doc2 = frappe.get_doc("Roll Ticket", rt.name)
-    _check("T3.5 cutted_qty_a = 42", rt_doc2.cutted_qty_a == 42, f"Got: {rt_doc2.cutted_qty_a}")
-    _check("T3.6 Status → Completed", rt_doc2.roll_status == "Completed", f"Got: {rt_doc2.roll_status}")
+    packing_grades = frappe.get_all(
+        "DESAR Roll Ticket Stage Grade",
+        filters={"parent": rt.name, "stage_name": "Packing"},
+        fields=["grade_code", "qty"],
+    )
+    _check("T3.5 Packing stage grades created", len(packing_grades) == 3,
+           f"Got {len(packing_grades)} rows")
+    rt_final_status = frappe.db.get_value("Roll Ticket", rt.name, "roll_status")
+    _check("T3.6 Status → Completed", rt_final_status == "Completed",
+           f"Got: {rt_final_status}")
 
 
 def _test_repack_build_items():

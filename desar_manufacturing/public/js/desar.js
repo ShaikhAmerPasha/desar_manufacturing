@@ -85,12 +85,13 @@ frappe.ui.form.on("Work Order", {
 
     /**
      * On form refresh of a SUBMITTED Work Order:
-     * Show DESAR QC button group if a Manufacture SE exists.
-     * Button type depends on the production item.
+     * Dynamic QI buttons are added by the second handler below.
+     * Legacy fallback is handled inside _desar_load_stage_config callback.
      */
     refresh(frm) {
         if (frm.doc.docstatus !== 1) return;
-        _desar_maybe_add_qi_button(frm);
+        // QI buttons are handled by dynamic handler at bottom of file
+        // which falls back to legacy if no Stage Configuration found
     },
 
 });
@@ -171,48 +172,72 @@ frappe.ui.form.on("Design Master", {
         if (frm.is_new()) return;
         if (!frm.doc.is_active) return;
 
-        const has_all_boms = (
-            frm.doc.bom_level_1 &&
-            frm.doc.bom_level_2 &&
-            frm.doc.bom_level_3 &&
-            frm.doc.bom_level_4
-        );
+        const stages = frm.doc.stage_configuration || [];
 
-        if (!has_all_boms) {
-            frm.add_custom_button(__("Create All BOMs"), () => {
-                _desar_create_all_boms(frm);
-            }, __("DESAR"));
+        if (stages.length > 0) {
+            // Dynamic mode — check which stages are missing BOMs
+            const missing = stages.filter(s => !s.bom_no).map(s => s.stage_name);
+            const total = stages.length;
+            const done = total - missing.length;
 
-            // Show indicator if BOMs are missing
-            const missing = [
-                !frm.doc.bom_level_1 && "BOM L1 (Warping Beam)",
-                !frm.doc.bom_level_2 && "BOM L2 (Grey Roll)",
-                !frm.doc.bom_level_3 && "BOM L3 (Finished Roll)",
-                !frm.doc.bom_level_4 && "BOM L4 (Shemagh)",
-            ].filter(Boolean);
-
-            frm.set_intro(
-                __("Missing BOMs: {0}. Click 'Create All BOMs' to auto-create.", [missing.join(", ")]),
-                "orange"
-            );
+            if (missing.length > 0) {
+                frm.add_custom_button(__("Create All BOMs"), () => {
+                    _desar_create_all_boms(frm, total);
+                }, __("DESAR"));
+                frm.set_intro(
+                    __("Missing BOMs for stages: {0}. Click 'Create All BOMs'.", [missing.join(", ")]),
+                    "orange"
+                );
+            } else {
+                frm.set_intro(
+                    __("All {0} BOMs created in Draft. Review and submit each BOM.", [total]),
+                    "green"
+                );
+            }
         } else {
-            frm.set_intro(__("All 4 BOMs are created for this Design Master."), "green");
+            // Legacy mode — check bom_level_1/2/3/4
+            const has_all_boms = (
+                frm.doc.bom_level_1 &&
+                frm.doc.bom_level_2 &&
+                frm.doc.bom_level_3 &&
+                frm.doc.bom_level_4
+            );
+
+            if (!has_all_boms) {
+                frm.add_custom_button(__("Create All BOMs"), () => {
+                    _desar_create_all_boms(frm, 4);
+                }, __("DESAR"));
+
+                const missing = [
+                    !frm.doc.bom_level_1 && "BOM L1 (Warping Beam)",
+                    !frm.doc.bom_level_2 && "BOM L2 (Grey Roll)",
+                    !frm.doc.bom_level_3 && "BOM L3 (Finished Roll)",
+                    !frm.doc.bom_level_4 && "BOM L4 (Shemagh)",
+                ].filter(Boolean);
+
+                frm.set_intro(
+                    __("Missing BOMs: {0}. Click 'Create All BOMs' to auto-create.", [missing.join(", ")]),
+                    "orange"
+                );
+            } else {
+                frm.set_intro(__("All 4 BOMs created in Draft. Review and submit each BOM."), "green");
+            }
         }
     },
 
 });
 
 
-function _desar_create_all_boms(frm) {
+function _desar_create_all_boms(frm, stage_count) {
     frappe.confirm(
-        __("Create all 4 BOMs for Design Master {0}?", [frm.doc.name]),
+        __("Create all {0} BOMs for Design Master {1}?", [stage_count, frm.doc.name]),
         () => {
             _desar_call(
                 DESAR.API.CREATE_BOMS,
                 { design_master: frm.doc.name },
                 () => {
                     frappe.show_alert({
-                        message: __("BOMs created successfully"),
+                        message: __("BOMs created in Draft — please review and submit each BOM"),
                         indicator: "green",
                     });
                     frm.reload_doc();
@@ -233,59 +258,119 @@ frappe.ui.form.on("Roll Ticket", {
         _desar_render_grade_summary(frm);
     },
 
-    // Auto-calculate totals in real time as inspector types
-    grey_qty_a(frm)     { _desar_calc_total(frm, "grey"); },
-    grey_qty_b(frm)     { _desar_calc_total(frm, "grey"); },
-    grey_qty_c(frm)     { _desar_calc_total(frm, "grey"); },
-    finished_qty_a(frm) { _desar_calc_total(frm, "finished"); },
-    finished_qty_b(frm) { _desar_calc_total(frm, "finished"); },
-    finished_qty_c(frm) { _desar_calc_total(frm, "finished"); },
-    cutted_qty_a(frm)   { _desar_calc_total(frm, "cutted"); },
-    cutted_qty_b(frm)   { _desar_calc_total(frm, "cutted"); },
-    cutted_qty_c(frm)   { _desar_calc_total(frm, "cutted"); },
+    // Stage grades are now dynamic — totals computed server-side
+    // Old static grey_qty_a/b/c, finished_qty_a/b/c, cutted_qty_a/b/c removed v3.0
 
 });
 
 
-function _desar_calc_total(frm, prefix) {
-    const a = frm.doc[`${prefix}_qty_a`] || 0;
-    const b = frm.doc[`${prefix}_qty_b`] || 0;
-    const c = frm.doc[`${prefix}_qty_c`] || 0;
-    frm.set_value(`${prefix}_total`, a + b + c);
-}
 
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DYNAMIC QI BUTTONS — reads Stage Configuration from Design Master
+// Replaces hardcoded GREY_ROLL/FINISHED_ROLL/Shemagh checks
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Render yield % summary in the Final section.
- * Shows Grade A%, Grade B%, Scrap% in green/orange/red.
+ * Load stage configuration for the Work Order's Design Master.
+ * Returns array of stages with qi_required=1.
+ * Falls back to legacy buttons if no stage config found.
  */
-function _desar_render_grade_summary(frm) {
-    const total = frm.doc.cutted_total || 0;
-    if (!total) return;
-
-    const pct = (n) => ((n || 0) / total * 100).toFixed(1);
-    const a = frm.doc.cutted_qty_a || 0;
-    const b = frm.doc.cutted_qty_b || 0;
-    const c = frm.doc.cutted_qty_c || 0;
-
-    const html = `
-        <div style="padding: 6px 0; font-size: 13px; font-weight: 500;">
-            <span style="color: #27ae60;">&#9632; Grade A: ${a} pcs (${pct(a)}%)</span>
-            &nbsp;&nbsp;
-            <span style="color: #e67e22;">&#9632; Grade B: ${b} pcs (${pct(b)}%)</span>
-            &nbsp;&nbsp;
-            <span style="color: #e74c3c;">&#9632; Scrap: ${c} pcs (${pct(c)}%)</span>
-        </div>
-    `;
-
-    // Inject after the section_cutted heading
-    const section = frm.fields_dict["section_cutted"];
-    if (section && section.wrapper) {
-        const existing = section.wrapper.querySelector(".desar-grade-summary");
-        if (existing) existing.remove();
-        const div = document.createElement("div");
-        div.className = "desar-grade-summary";
-        div.innerHTML = html;
-        section.wrapper.appendChild(div);
+function _desar_load_stage_config(frm, callback) {
+    const design_master = frm.doc.custom_design_master;
+    if (!design_master) {
+        callback(null);
+        return;
     }
+
+    frappe.call({
+        method: "desar_manufacturing.api.manufacturing.get_stage_configuration",
+        args: { design_master },
+        callback({ message }) {
+            callback(message || []);
+        },
+        error() { callback(null); }
+    });
 }
+
+/**
+ * Add dynamic QI button for the stage matching this Work Order's production item.
+ *
+ * Key rule: Each Work Order produces ONE item → matches ONE stage in Stage Config.
+ * Only show the QI button for THAT stage.
+ *
+ * e.g. Grey Roll WO → matches Weaving stage (output_item=Grey Roll) → shows
+ *      "Create Grey Inspection" (label = "Create {output_item} Inspection")
+ *
+ * No button shown if:
+ * - Stage has qi_required=0 (e.g. Warping stage)
+ * - No Manufacture SE exists yet (WO not finished)
+ * - Production item does not match any stage
+ */
+function _desar_add_dynamic_qi_buttons(frm, stages) {
+    const production_item = frm.doc.production_item;
+    if (!production_item) return;
+
+    // Find the stage that matches this WO's production item
+    const matching_stage = stages.find(s => s.output_item === production_item);
+    if (!matching_stage) {
+        // No matching stage — fallback to legacy
+        _desar_maybe_add_qi_button(frm);
+        return;
+    }
+
+    // Stage found but QI not required (e.g. Warping Beam)
+    if (!matching_stage.qi_required) return;
+
+    // Only show button if Manufacture SE exists
+    frappe.db.count("Stock Entry", {
+        work_order: frm.doc.name,
+        stock_entry_type: "Manufacture",
+        docstatus: 1,
+    }).then(count => {
+        if (!count) return;
+
+        // Label: "Create {output_item} Inspection"
+        // e.g. "Create Grey Roll Inspection" or "Create Shemagh-VIC-60-A Inspection"
+        const label = __("Create {0} Inspection", [matching_stage.output_item]);
+
+        frm.add_custom_button(label, () => {
+            frappe.confirm(
+                __("Create Quality Inspection for {0}?", [matching_stage.stage_name]),
+                () => {
+                    _desar_call(
+                        "desar_manufacturing.api.manufacturing.create_quality_inspection_dynamic",
+                        { work_order: frm.doc.name, stage_name: matching_stage.stage_name },
+                        (qi_name) => {
+                            frappe.show_alert({
+                                message: __("QI {0} created", [qi_name]),
+                                indicator: "green",
+                            });
+                            frappe.set_route("Form", "Quality Inspection", qi_name);
+                        }
+                    );
+                }
+            );
+        }, __("DESAR QC"));
+    });
+}
+
+// Override the refresh handler to try dynamic first, fallback to legacy
+const _original_wo_refresh = frappe.ui.form.on;
+
+frappe.ui.form.on("Work Order", {
+    refresh(frm) {
+        if (frm.doc.docstatus !== 1) return;
+
+        // Try dynamic stage config first
+        _desar_load_stage_config(frm, (stages) => {
+            if (stages && stages.length > 0) {
+                _desar_add_dynamic_qi_buttons(frm, stages);
+            } else {
+                // Fallback to legacy buttons
+                _desar_maybe_add_qi_button(frm);
+            }
+        });
+    },
+});

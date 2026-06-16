@@ -5,39 +5,188 @@
  "engine": "InnoDB",
  "issingle": 1,
  "field_order": [
-  "section_general","default_company",
-  "section_warehouses","yarn_warehouse","chemical_warehouse","accessories_warehouse","col_break",
-  "warping_wip_warehouse","loom_floor_warehouse","grey_roll_warehouse",
-  "finishing_wip_warehouse","finished_roll_warehouse",
-  "cutting_packing_warehouse","fg_grade_a_warehouse","fg_grade_b_warehouse","scrap_warehouse",
-  "section_items","warping_beam_item","grey_roll_item","finished_roll_item","shemagh_scrap_item",
-  "section_auto","auto_create_roll_ticket","auto_create_repack_entry"
+  "section_general",
+  "default_company",
+  "section_warehouses",
+  "yarn_warehouse",
+  "chemical_warehouse",
+  "accessories_warehouse",
+  "col_break",
+  "warping_wip_warehouse",
+  "loom_floor_warehouse",
+  "grey_roll_warehouse",
+  "finishing_wip_warehouse",
+  "finished_roll_warehouse",
+  "cutting_packing_warehouse",
+  "fg_grade_a_warehouse",
+  "fg_grade_b_warehouse",
+  "scrap_warehouse",
+  "section_items",
+  "warping_beam_item",
+  "grey_roll_item",
+  "finished_roll_item",
+  "shemagh_scrap_item",
+  "section_auto",
+  "auto_create_roll_ticket",
+  "auto_create_repack_entry"
  ],
  "fields": [
-  {"fieldname":"section_general","fieldtype":"Section Break","label":"General"},
-  {"fieldname":"default_company","fieldtype":"Link","label":"Default Company","options":"Company","reqd":1},
-  {"fieldname":"section_warehouses","fieldtype":"Section Break","label":"Warehouse Configuration"},
-  {"fieldname":"yarn_warehouse","fieldtype":"Link","label":"Yarn Store","options":"Warehouse"},
-  {"fieldname":"chemical_warehouse","fieldtype":"Link","label":"Chemical Store","options":"Warehouse"},
-  {"fieldname":"accessories_warehouse","fieldtype":"Link","label":"Accessories Store","options":"Warehouse"},
-  {"fieldname":"col_break","fieldtype":"Column Break"},
-  {"fieldname":"warping_wip_warehouse","fieldtype":"Link","label":"Warping WIP","options":"Warehouse"},
-  {"fieldname":"loom_floor_warehouse","fieldtype":"Link","label":"Loom Floor","options":"Warehouse"},
-  {"fieldname":"grey_roll_warehouse","fieldtype":"Link","label":"Grey Roll Store","options":"Warehouse"},
-  {"fieldname":"finishing_wip_warehouse","fieldtype":"Link","label":"Finishing WIP","options":"Warehouse"},
-  {"fieldname":"finished_roll_warehouse","fieldtype":"Link","label":"Finished Roll Store","options":"Warehouse"},
-  {"fieldname":"cutting_packing_warehouse","fieldtype":"Link","label":"Cutting & Packing Floor","options":"Warehouse"},
-  {"fieldname":"fg_grade_a_warehouse","fieldtype":"Link","label":"FG - Grade A","options":"Warehouse"},
-  {"fieldname":"fg_grade_b_warehouse","fieldtype":"Link","label":"FG - Grade B","options":"Warehouse"},
-  {"fieldname":"scrap_warehouse","fieldtype":"Link","label":"Scrap Yard","options":"Warehouse"},
-  {"fieldname":"section_items","fieldtype":"Section Break","label":"Default Items"},
-  {"fieldname":"warping_beam_item","fieldtype":"Link","label":"Warping Beam Item","options":"Item","default":"Warping Beam"},
-  {"fieldname":"grey_roll_item","fieldtype":"Link","label":"Grey Roll Item","options":"Item","default":"Grey Roll"},
-  {"fieldname":"finished_roll_item","fieldtype":"Link","label":"Finished Roll Item","options":"Item","default":"Finished Roll"},
-  {"fieldname":"shemagh_scrap_item","fieldtype":"Link","label":"Shemagh Scrap Item","options":"Item","default":"Shemagh Scrap"},
-  {"fieldname":"section_auto","fieldtype":"Section Break","label":"Automation"},
-  {"default":"1","fieldname":"auto_create_roll_ticket","fieldtype":"Check","label":"Auto-create Roll Ticket on Grey Roll production"},
-  {"default":"1","fieldname":"auto_create_repack_entry","fieldtype":"Check","label":"Auto-create Repack Entry on Final Packing QI"}
+  {
+   "fieldname": "section_general",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "fieldname": "default_company",
+   "fieldtype": "Link",
+   "label": "Default Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_warehouses",
+   "fieldtype": "Section Break",
+   "label": "Warehouse Configuration"
+  },
+  {
+   "fieldname": "yarn_warehouse",
+   "fieldtype": "Link",
+   "label": "Yarn Store",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "chemical_warehouse",
+   "fieldtype": "Link",
+   "label": "Chemical Store",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "accessories_warehouse",
+   "fieldtype": "Link",
+   "label": "Accessories Store",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "warping_wip_warehouse",
+   "fieldtype": "Link",
+   "label": "Warping WIP",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "loom_floor_warehouse",
+   "fieldtype": "Link",
+   "label": "Loom Floor",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "grey_roll_warehouse",
+   "fieldtype": "Link",
+   "label": "Grey Roll Store",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "finishing_wip_warehouse",
+   "fieldtype": "Link",
+   "label": "Finishing WIP",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "finished_roll_warehouse",
+   "fieldtype": "Link",
+   "label": "Finished Roll Store",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "cutting_packing_warehouse",
+   "fieldtype": "Link",
+   "label": "Cutting & Packing Floor",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "fg_grade_a_warehouse",
+   "fieldtype": "Link",
+   "label": "FG - Grade A",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "fg_grade_b_warehouse",
+   "fieldtype": "Link",
+   "label": "FG - Grade B",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "scrap_warehouse",
+   "fieldtype": "Link",
+   "label": "Scrap Yard",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "section_items",
+   "fieldtype": "Section Break",
+   "label": "Default Items"
+  },
+  {
+   "fieldname": "warping_beam_item",
+   "fieldtype": "Link",
+   "label": "Warping Beam Item",
+   "options": "Item",
+   "default": "Warping Beam"
+  },
+  {
+   "fieldname": "grey_roll_item",
+   "fieldtype": "Link",
+   "label": "Grey Roll Item",
+   "options": "Item",
+   "default": "Grey Roll"
+  },
+  {
+   "fieldname": "finished_roll_item",
+   "fieldtype": "Link",
+   "label": "Finished Roll Item",
+   "options": "Item",
+   "default": "Finished Roll"
+  },
+  {
+   "fieldname": "shemagh_scrap_item",
+   "fieldtype": "Link",
+   "label": "Shemagh Scrap Item",
+   "options": "Item",
+   "default": "Shemagh Scrap"
+  },
+  {
+   "fieldname": "section_auto",
+   "fieldtype": "Section Break",
+   "label": "Automation"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_roll_ticket",
+   "fieldtype": "Check",
+   "label": "Auto-create Roll Ticket on Grey Roll production"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_repack_entry",
+   "fieldtype": "Check",
+   "label": "Auto-create Repack Entry on Final Packing QI"
+  },
+  {
+   "fieldname": "section_grade_config",
+   "fieldtype": "Section Break",
+   "label": "Grade Configuration",
+   "description": "Define all grades, their valuation %, target warehouses, and item suffixes. Adding a row here makes a new grade available across the entire system \u2014 no code change needed."
+  },
+  {
+   "fieldname": "grade_configuration",
+   "fieldtype": "Table",
+   "label": "Grade Configuration",
+   "options": "DESAR Grade Configuration",
+   "description": "Each row = one grade. System reads this to build Repack SE, validate QI totals, and update Roll Ticket."
+  }
  ],
  "icon": "fa fa-cog",
  "modified": "2026-05-01 00:00:00.000000",
@@ -46,8 +195,18 @@
  "name": "DESAR Settings",
  "owner": "Administrator",
  "permissions": [
-  {"create":1,"delete":0,"read":1,"role":"System Manager","write":1},
-  {"read":1,"role":"Manufacturing Manager","write":1}
+  {
+   "create": 1,
+   "delete": 0,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Manufacturing Manager",
+   "write": 1
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC"

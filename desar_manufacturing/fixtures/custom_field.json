@@ -1,16 +1,38 @@
 [
-  {
-    "name": "Quality Inspection-custom_roll_ticket",
-    "doctype": "Custom Field",
-    "dt": "Quality Inspection",
-    "fieldname": "custom_roll_ticket",
-    "fieldtype": "Link",
-    "label": "Roll Ticket",
-    "options": "Roll Ticket",
-    "insert_after": "custom_desar_section",
-    "read_only": 1,
-    "in_list_view": 0,
-    "print_hide": 0,
-    "description": "Auto-linked Roll Ticket. Set at QI creation time for fast lookup."
-  }
+ {
+  "name": "Quality Inspection-custom_roll_ticket",
+  "doctype": "Custom Field",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_roll_ticket",
+  "fieldtype": "Link",
+  "label": "Roll Ticket",
+  "options": "Roll Ticket",
+  "insert_after": "custom_desar_section",
+  "read_only": 1,
+  "in_list_view": 0,
+  "print_hide": 0,
+  "description": "Auto-linked Roll Ticket. Set at QI creation time for fast lookup."
+ },
+ {
+  "name": "Quality Inspection-custom_desar_grade_readings",
+  "doctype": "Custom Field",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_desar_grade_readings",
+  "fieldtype": "Table",
+  "label": "DESAR Grade Readings",
+  "options": "DESAR QI Grade Reading",
+  "insert_after": "custom_desar_section",
+  "description": "Dynamic grade count readings. Auto-populated from DESAR Grade Configuration when QI is created. One row per grade."
+ },
+ {
+  "name": "Quality Inspection-custom_desar_stage_name",
+  "doctype": "Custom Field",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_desar_stage_name",
+  "fieldtype": "Data",
+  "label": "DESAR Stage Name",
+  "insert_after": "custom_roll_ticket",
+  "read_only": 1,
+  "description": "Stage name from Design Master Stage Configuration. Set at QI creation time."
+ }
 ]

@@ -1,0 +1,138 @@
+{
+  "name": "DESAR Stage Configuration",
+  "doctype": "DocType",
+  "module": "Desar Manufacturing",
+  "istable": 1,
+  "editable_grid": 1,
+  "track_changes": 0,
+  "description": "Production stage configuration for a Design Master. Each row = one production stage. The system reads this table to determine Work Order sequence, QI button behavior, Roll Ticket creation, and Repack triggering. Adding a row here adds a new production stage without any code change.",
+  "fields": [
+    {
+      "fieldname": "stage_seq",
+      "fieldtype": "Int",
+      "label": "Seq",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "Stage sequence number. Determines production order."
+    },
+    {
+      "fieldname": "stage_name",
+      "fieldtype": "Data",
+      "label": "Stage Name",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "description": "Human-readable name. e.g. Warping, Weaving, Dyeing, Finishing, Packing"
+    },
+    {
+      "fieldname": "output_item",
+      "fieldtype": "Link",
+      "label": "Output Item",
+      "options": "Item",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "description": "Item produced by this stage. Warping→Warping Beam, Weaving→Grey Roll, etc."
+    },
+    {
+      "fieldname": "output_qty",
+      "fieldtype": "Float",
+      "label": "Output Qty",
+      "default": "1",
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "Quantity produced per production run. Usually 1 for intermediate items, 50 for final."
+    },
+    {
+      "fieldname": "col_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "qi_required",
+      "fieldtype": "Check",
+      "label": "QI Required",
+      "default": "0",
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "If checked, DESAR QC button appears on this stage's Work Order after completion."
+    },
+    {
+      "fieldname": "qi_template",
+      "fieldtype": "Link",
+      "label": "QI Template",
+      "options": "Quality Inspection Template",
+      "depends_on": "eval:doc.qi_required == 1",
+      "description": "QI template to use when inspector creates inspection for this stage."
+    },
+    {
+      "fieldname": "sample_size_formula",
+      "fieldtype": "Select",
+      "label": "Sample Size",
+      "options": "\n1\nwo_qty\nwo_qty * 0.1\nwo_qty * 0.05",
+      "default": "1",
+      "depends_on": "eval:doc.qi_required == 1",
+      "description": "How many pieces to inspect. 1=one roll, wo_qty=all pieces, wo_qty*0.1=10%"
+    },
+    {
+      "fieldname": "roll_ticket_trigger",
+      "fieldtype": "Check",
+      "label": "Creates Roll Ticket",
+      "default": "0",
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "If checked, submitting Manufacture SE for this stage auto-creates a Roll Ticket."
+    },
+    {
+      "fieldname": "is_final_stage",
+      "fieldtype": "Check",
+      "label": "Is Final Stage",
+      "default": "0",
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "If checked, submitting QI for this stage triggers Repack SE auto-creation."
+    },
+    {
+      "fieldname": "can_split",
+      "fieldtype": "Check",
+      "label": "Can Split",
+      "default": "0",
+      "description": "If checked, this stage output can be split and fed to multiple parallel Work Orders."
+    },
+    {
+      "fieldname": "section_operations",
+      "fieldtype": "Section Break",
+      "label": "Operations"
+    },
+    {
+      "fieldname": "operations",
+      "fieldtype": "Table",
+      "label": "Operations",
+      "options": "DESAR Stage Operation",
+      "description": "Operations performed in this stage. Each operation maps to an ERPNext Job Card."
+    },
+    {
+      "fieldname": "section_bom",
+      "fieldtype": "Section Break",
+      "label": "BOM"
+    },
+    {
+      "fieldname": "bom_no",
+      "fieldtype": "Link",
+      "label": "BOM",
+      "options": "BOM",
+      "read_only": 1,
+      "description": "Auto-filled when Create All BOMs is clicked on the Design Master."
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    },
+    {
+      "role": "Manufacturing Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    }
+  ]
+}

@@ -338,3 +338,169 @@ def _get_consumed_batch(se_name: str, item_code: str) -> str:
         ) or ""
 
     return ""
+
+# ── Dynamic Stage-based QI Creation ──────────────────────────────────────────
+
+@frappe.whitelist()
+def create_quality_inspection_dynamic(work_order: str, stage_name: str) -> str:
+    """
+    Create a pre-filled Quality Inspection using Stage Configuration.
+    Called from dynamic DESAR QC buttons on Work Order form.
+
+    Args:
+        work_order: Work Order name
+        stage_name: Stage name from DESAR Stage Configuration
+
+    Returns:
+        Quality Inspection name
+    """
+    if not work_order or not stage_name:
+        frappe.throw(_("Work Order and Stage Name are required"))
+
+    frappe.has_permission("Quality Inspection", "create", throw=True)
+
+    wo_docstatus = frappe.db.get_value("Work Order", work_order, "docstatus")
+    if cint(wo_docstatus) != 1:
+        frappe.throw(_("Work Order must be submitted"))
+
+    se_name = WorkOrderRepository.get_manufacture_se(work_order)
+    if not se_name:
+        frappe.throw(
+            _("No Manufacture entry found for {0}. Finish the Work Order first.").format(work_order)
+        )
+
+    # Get stage configuration
+    design_master = frappe.db.get_value("Work Order", work_order, "custom_design_master")
+    stage_config = None
+    if design_master:
+        stage_config = frappe.db.get_value(
+            "DESAR Stage Configuration",
+            filters={"parent": design_master, "stage_name": stage_name},
+            fieldname=["stage_name", "output_item", "qi_template", "sample_size_formula", "is_final_stage"],
+            as_dict=True,
+        )
+
+    if not stage_config:
+        # Fallback to legacy
+        return create_quality_inspection(work_order, _map_stage_name_to_legacy(stage_name))
+
+    # Get output item and batch
+    output_item = stage_config.output_item or ""
+    batch_no = StockEntryRepository.get_finished_item_batch(se_name, output_item) or ""
+
+    # Calculate sample size
+    wo_context = WorkOrderRepository.get_design_context(work_order)
+    wo_qty = cint(wo_context.get("qty") or 1)
+    sample_size = _calculate_sample_size(stage_config.sample_size_formula or "1", wo_qty)
+
+    # Find Roll Ticket
+    roll_ticket = _find_roll_ticket_for_qi_creation(se_name, batch_no, "grey")  # Use chain lookup
+
+    # Build grade readings from Grade Configuration
+    grade_readings = _build_grade_readings_from_config()
+
+    qi = frappe.get_doc({
+        "doctype":                     "Quality Inspection",
+        "inspection_type":             "In Process",
+        "reference_type":              "Stock Entry",
+        "reference_name":              se_name,
+        "item_code":                   output_item,
+        "batch_no":                    batch_no,
+        "sample_size":                 sample_size,
+        "quality_inspection_template": stage_config.qi_template or "",
+        "inspected_by":                frappe.session.user,
+        "status":                      "Accepted",
+        "custom_roll_ticket":          roll_ticket or "",
+        "custom_desar_stage_name":     stage_name,
+    })
+
+    # Add grade readings
+    for reading in grade_readings:
+        qi.append("custom_desar_grade_readings", reading)
+
+    _load_readings_from_template(qi, stage_config.qi_template or "")
+    qi.insert(ignore_permissions=True)
+
+    frappe.msgprint(
+        _("Quality Inspection <b>{0}</b> created — {1}").format(qi.name, stage_name),
+        alert=True,
+    )
+    return qi.name
+
+
+def _build_grade_readings_from_config() -> list:
+    """
+    Build initial grade reading rows from DESAR Grade Configuration.
+    One row per active grade, qty=0 (inspector fills in).
+    """
+    from desar_manufacturing.config.settings_manager import SettingsManager
+    grades = SettingsManager.get_grade_configuration()
+    return [
+        {
+            "grade_code":  g.grade_code,
+            "grade_label": g.grade_label,
+            "qty":         0,
+        }
+        for g in grades
+    ]
+
+
+def _calculate_sample_size(formula: str, wo_qty: int) -> float:
+    """Calculate sample size from formula string."""
+    try:
+        if formula == "1":
+            return 1
+        elif formula == "wo_qty":
+            return wo_qty
+        elif formula.startswith("wo_qty *"):
+            factor = float(formula.split("*")[1].strip())
+            return max(1, int(wo_qty * factor))
+        return 1
+    except Exception:
+        return 1
+
+
+def _map_stage_name_to_legacy(stage_name: str) -> str:
+    """Map stage name to legacy stage identifier."""
+    name_lower = stage_name.lower()
+    if "grey" in name_lower or "weaving" in name_lower:
+        return "grey"
+    elif "finishing" in name_lower or "chemical" in name_lower:
+        return "finishing"
+    elif "packing" in name_lower or "cutting" in name_lower or "final" in name_lower:
+        return "final"
+    return "final"
+
+
+# ── Grade Configuration API ───────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_grade_configuration() -> list:
+    """
+    Get active grade configuration for use in JS.
+    Called from desar.js to build dynamic QI grade input forms.
+    """
+    from desar_manufacturing.config.settings_manager import SettingsManager
+    return SettingsManager.get_grade_configuration()
+
+
+@frappe.whitelist()
+def get_stage_configuration(design_master: str) -> list:
+    """
+    Get stage configuration for a Design Master.
+    Called from desar.js to build dynamic QI buttons on Work Order.
+    """
+    if not design_master:
+        return []
+
+    stages = frappe.get_all(
+        "DESAR Stage Configuration",
+        filters={"parent": design_master, "parenttype": "Design Master"},
+        fields=[
+            "stage_seq", "stage_name", "output_item",
+            "qi_required", "qi_template", "is_final_stage",
+            "roll_ticket_trigger", "can_split", "bom_no"
+        ],
+        order_by="stage_seq asc",
+    )
+    return stages

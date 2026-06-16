@@ -139,6 +139,44 @@ class SettingsManager:
             )
         return company or ""
 
+    @classmethod
+    def get_grade_configuration(cls) -> list:
+        """
+        Get active grade configuration rows from DESAR Settings.
+
+        Returns:
+            List of dicts with grade_code, grade_label, valuation_pct,
+            target_warehouse, item_suffix, scrap_item, is_scrap fields.
+            Returns empty list if not configured (falls back to legacy behavior).
+
+        Usage:
+            grades = SettingsManager.get_grade_configuration()
+            for grade in grades:
+                print(grade.grade_code, grade.valuation_pct)
+        """
+        try:
+            rows = frappe.get_all(
+                "DESAR Grade Configuration",
+                filters={
+                    "parent": "DESAR Settings",
+                    "parenttype": "DESAR Settings",
+                    "is_active": 1,
+                },
+                fields=[
+                    "grade_code", "grade_label", "valuation_pct",
+                    "target_warehouse", "item_suffix", "scrap_item", "is_scrap"
+                ],
+                order_by="idx asc",
+            )
+            return rows
+        except Exception:
+            return []
+
+    @classmethod
+    def has_grade_configuration(cls) -> bool:
+        """Check if grade configuration is set up in DESAR Settings."""
+        return bool(cls.get_grade_configuration())
+
 
 def on_settings_update(doc, method):
     """

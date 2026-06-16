@@ -9,6 +9,8 @@ app_version     = "2.3.0"
 required_apps = ["frappe", "erpnext"]
 
 after_install = "desar_manufacturing.install.setup.after_install"
+after_migrate = ["desar_manufacturing.install.setup.after_migrate"]
+after_migrate = ["desar_manufacturing.install.setup.after_migrate"]
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 # Exact name-based list — stable, does not break on rename
@@ -30,19 +32,10 @@ fixtures = [
             # Job Card fields — operator tracking
             "Job Card-custom_operator_name",
             "Job Card-custom_meters_produced",
-            # Quality Inspection — DESAR grade section
-            "Quality Inspection-custom_desar_section",
-            "Quality Inspection-custom_grey_qty_a",
-            "Quality Inspection-custom_grey_qty_b",
-            "Quality Inspection-custom_grey_qty_c",
-            "Quality Inspection-custom_finished_qty_a",
-            "Quality Inspection-custom_finished_qty_b",
-            "Quality Inspection-custom_finished_qty_c",
-            "Quality Inspection-custom_cutted_qty_a",
-            "Quality Inspection-custom_cutted_qty_b",
-            "Quality Inspection-custom_cutted_qty_c",
-            # Quality Inspection — Roll Ticket explicit link (Option 1)
+            # Quality Inspection — Dynamic grade system
             "Quality Inspection-custom_roll_ticket",
+            "Quality Inspection-custom_desar_grade_readings",
+            "Quality Inspection-custom_desar_stage_name",
             # Stock Entry — source QI traceability
             "Stock Entry-custom_source_qi",
             # BOM — design master linkage
