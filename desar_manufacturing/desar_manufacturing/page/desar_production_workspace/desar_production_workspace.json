@@ -1,0 +1,25 @@
+{
+ "name": "desar-production-workspace",
+ "page_name": "desar-production-workspace",
+ "title": "Production Workspace",
+ "module": "Desar Manufacturing",
+ "doctype": "Page",
+ "system_page": 0,
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "Manufacturing User"
+  },
+  {
+   "role": "DESAR QC Inspector"
+  },
+  {
+   "role": "DESAR Supervisor"
+  }
+ ]
+}

@@ -1,0 +1,95 @@
+{
+  "name": "DESAR Grade Configuration",
+  "doctype": "DocType",
+  "module": "Desar Manufacturing",
+  "istable": 1,
+  "editable_grid": 1,
+  "track_changes": 0,
+  "description": "Grade configuration child table for DESAR Settings. Defines all grades, their valuation percentages, target warehouses, and item suffixes. Adding a row here makes a new grade available across the entire system.",
+  "fields": [
+    {
+      "fieldname": "grade_code",
+      "fieldtype": "Data",
+      "label": "Grade Code",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "Short code used in item names. e.g. A, B, C, D"
+    },
+    {
+      "fieldname": "grade_label",
+      "fieldtype": "Data",
+      "label": "Label",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "description": "Display name. e.g. Premium, Standard, Export, Scrap"
+    },
+    {
+      "fieldname": "valuation_pct",
+      "fieldtype": "Float",
+      "label": "Valuation %",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 1,
+      "default": "100",
+      "description": "% of Grade A valuation rate. Grade A = 100, Grade B = 60, Scrap = 5"
+    },
+    {
+      "fieldname": "target_warehouse",
+      "fieldtype": "Link",
+      "label": "Target Warehouse",
+      "options": "Warehouse",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "description": "Where this grade's finished stock goes after Repack"
+    },
+    {
+      "fieldname": "col_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "item_suffix",
+      "fieldtype": "Data",
+      "label": "Item Suffix",
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "Suffix appended to base item code. e.g. -A, -B, -C. Leave blank for scrap items."
+    },
+    {
+      "fieldname": "scrap_item",
+      "fieldtype": "Link",
+      "label": "Scrap Item",
+      "options": "Item",
+      "description": "Fixed scrap item to use in Repack SE. Only fill for is_scrap grades."
+    },
+    {
+      "fieldname": "is_scrap",
+      "fieldtype": "Check",
+      "label": "Is Scrap",
+      "default": "0",
+      "in_list_view": 1,
+      "columns": 1,
+      "description": "If checked, uses scrap_item instead of suffix-based item derivation"
+    },
+    {
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "label": "Active",
+      "default": "1",
+      "in_list_view": 1,
+      "columns": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    },
+    {
+      "role": "Manufacturing Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    }
+  ]
+}

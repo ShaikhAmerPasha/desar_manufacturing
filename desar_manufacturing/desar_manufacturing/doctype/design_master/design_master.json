@@ -5,41 +5,195 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "naming_series","design_no","article_name","column_break_1",
-  "sizes","default_size",
-  "section_warp","warp_recipe",
-  "section_weft","weft_recipe",
-  "section_chemical","finish_chem_qty","wash_agent_qty","flower_chem_qty",
-  "section_packing","pieces_per_roll","branded_box_item","label_item",
-  "section_bom","bom_level_1","bom_level_2","bom_level_3","bom_level_4",
-  "section_status","is_active"
+  "naming_series",
+  "design_no",
+  "article_name",
+  "column_break_1",
+  "sizes",
+  "default_size",
+  "section_warp",
+  "warp_recipe",
+  "section_weft",
+  "weft_recipe",
+  "section_chemical",
+  "finish_chem_qty",
+  "wash_agent_qty",
+  "flower_chem_qty",
+  "section_packing",
+  "pieces_per_roll",
+  "branded_box_item",
+  "label_item",
+  "section_bom",
+  "bom_level_1",
+  "bom_level_2",
+  "bom_level_3",
+  "bom_level_4",
+  "section_status",
+  "is_active"
  ],
  "fields": [
-  {"fieldname":"naming_series","fieldtype":"Select","label":"Series","options":"DM-.YYYY.-.####","set_only_once":1},
-  {"fieldname":"design_no","fieldtype":"Data","label":"Design No.","reqd":1,"in_list_view":1,"bold":1},
-  {"fieldname":"article_name","fieldtype":"Data","label":"Article Name","reqd":1,"in_list_view":1,"bold":1},
-  {"fieldname":"column_break_1","fieldtype":"Column Break"},
-  {"fieldname":"sizes","fieldtype":"Data","label":"Available Sizes","description":"Comma separated: 55,58,60,62"},
-  {"fieldname":"default_size","fieldtype":"Data","label":"Default Size"},
-  {"fieldname":"section_warp","fieldtype":"Section Break","label":"Warp Recipe"},
-  {"fieldname":"warp_recipe","fieldtype":"Link","label":"Warp Recipe","options":"Warp Recipe"},
-  {"fieldname":"section_weft","fieldtype":"Section Break","label":"Weft Recipe"},
-  {"fieldname":"weft_recipe","fieldtype":"Link","label":"Weft Recipe","options":"Weft Recipe"},
-  {"fieldname":"section_chemical","fieldtype":"Section Break","label":"Chemical Consumption (per roll)"},
-  {"fieldname":"finish_chem_qty","fieldtype":"Float","label":"Finishing Chemical (Litre)","default":"5"},
-  {"fieldname":"wash_agent_qty","fieldtype":"Float","label":"Washing Agent (Litre)","default":"3"},
-  {"fieldname":"flower_chem_qty","fieldtype":"Float","label":"Flower Chemical (Litre)","default":"2"},
-  {"fieldname":"section_packing","fieldtype":"Section Break","label":"Packing"},
-  {"fieldname":"pieces_per_roll","fieldtype":"Int","label":"Expected Pieces per Roll","default":"50"},
-  {"fieldname":"branded_box_item","fieldtype":"Link","label":"Branded Box Item","options":"Item"},
-  {"fieldname":"label_item","fieldtype":"Link","label":"Label/Stamp Item","options":"Item"},
-  {"fieldname":"section_bom","fieldtype":"Section Break","label":"Linked BOMs (auto-filled on BOM creation)"},
-  {"fieldname":"bom_level_1","fieldtype":"Link","label":"BOM L1: Warping Beam","options":"BOM","read_only":1},
-  {"fieldname":"bom_level_2","fieldtype":"Link","label":"BOM L2: Grey Roll","options":"BOM","read_only":1},
-  {"fieldname":"bom_level_3","fieldtype":"Link","label":"BOM L3: Finished Roll","options":"BOM","read_only":1},
-  {"fieldname":"bom_level_4","fieldtype":"Link","label":"BOM L4: Shemagh","options":"BOM","read_only":1},
-  {"fieldname":"section_status","fieldtype":"Section Break"},
-  {"fieldname":"is_active","fieldtype":"Check","label":"Active","default":"1"}
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "DM-.YYYY.-.####",
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "design_no",
+   "fieldtype": "Data",
+   "label": "Design No.",
+   "reqd": 1,
+   "in_list_view": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "article_name",
+   "fieldtype": "Data",
+   "label": "Article Name",
+   "reqd": 1,
+   "in_list_view": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sizes",
+   "fieldtype": "Data",
+   "label": "Available Sizes",
+   "description": "Comma separated: 55,58,60,62"
+  },
+  {
+   "fieldname": "default_size",
+   "fieldtype": "Data",
+   "label": "Default Size"
+  },
+  {
+   "fieldname": "section_warp",
+   "fieldtype": "Section Break",
+   "label": "Warp Recipe"
+  },
+  {
+   "fieldname": "warp_recipe",
+   "fieldtype": "Link",
+   "label": "Warp Recipe",
+   "options": "Warp Recipe"
+  },
+  {
+   "fieldname": "section_weft",
+   "fieldtype": "Section Break",
+   "label": "Weft Recipe"
+  },
+  {
+   "fieldname": "weft_recipe",
+   "fieldtype": "Link",
+   "label": "Weft Recipe",
+   "options": "Weft Recipe"
+  },
+  {
+   "fieldname": "section_chemical",
+   "fieldtype": "Section Break",
+   "label": "Chemical Consumption (per roll)"
+  },
+  {
+   "fieldname": "finish_chem_qty",
+   "fieldtype": "Float",
+   "label": "Finishing Chemical (Litre)",
+   "default": "5"
+  },
+  {
+   "fieldname": "wash_agent_qty",
+   "fieldtype": "Float",
+   "label": "Washing Agent (Litre)",
+   "default": "3"
+  },
+  {
+   "fieldname": "flower_chem_qty",
+   "fieldtype": "Float",
+   "label": "Flower Chemical (Litre)",
+   "default": "2"
+  },
+  {
+   "fieldname": "section_packing",
+   "fieldtype": "Section Break",
+   "label": "Packing"
+  },
+  {
+   "fieldname": "pieces_per_roll",
+   "fieldtype": "Int",
+   "label": "Expected Pieces per Roll",
+   "default": "50"
+  },
+  {
+   "fieldname": "branded_box_item",
+   "fieldtype": "Link",
+   "label": "Branded Box Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "label_item",
+   "fieldtype": "Link",
+   "label": "Label/Stamp Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "section_stage_config",
+   "fieldtype": "Section Break",
+   "label": "Production Stage Configuration",
+   "description": "Define all production stages for this design. Each row = one stage. System reads this to show QI buttons, create Roll Tickets, trigger Repack, and auto-create BOMs. Adding a row here adds a new stage with zero code change."
+  },
+  {
+   "fieldname": "stage_configuration",
+   "fieldtype": "Table",
+   "label": "Stage Configuration",
+   "options": "DESAR Stage Configuration",
+   "description": "Each row = one production stage in sequence order."
+  },
+  {
+   "fieldname": "section_bom",
+   "fieldtype": "Section Break",
+   "label": "Linked BOMs (auto-filled on BOM creation)"
+  },
+  {
+   "fieldname": "bom_level_1",
+   "fieldtype": "Link",
+   "label": "BOM L1: Warping Beam",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bom_level_2",
+   "fieldtype": "Link",
+   "label": "BOM L2: Grey Roll",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bom_level_3",
+   "fieldtype": "Link",
+   "label": "BOM L3: Finished Roll",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bom_level_4",
+   "fieldtype": "Link",
+   "label": "BOM L4: Shemagh",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_status",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1"
+  }
  ],
  "modified": "2026-05-01 00:00:00.000000",
  "modified_by": "Administrator",
@@ -48,8 +202,26 @@
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
-  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"role":"Manufacturing Manager","share":1,"write":1},
-  {"create":1,"delete":0,"read":1,"report":1,"role":"Manufacturing User","write":1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "write": 1
+  }
  ],
  "search_fields": "design_no,article_name",
  "sort_field": "modified",

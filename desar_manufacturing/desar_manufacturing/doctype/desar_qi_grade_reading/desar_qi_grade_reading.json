@@ -1,0 +1,50 @@
+{
+  "name": "DESAR QI Grade Reading",
+  "doctype": "DocType",
+  "module": "Desar Manufacturing",
+  "istable": 1,
+  "editable_grid": 1,
+  "track_changes": 0,
+  "description": "Grade count readings on a Quality Inspection. One row per grade. Replaces the hardcoded custom_grey_qty_a, custom_grey_qty_b, custom_grey_qty_c etc. fields. When a new grade is added in DESAR Settings, it automatically appears here.",
+  "fields": [
+    {
+      "fieldname": "grade_code",
+      "fieldtype": "Data",
+      "label": "Grade",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 1,
+      "read_only": 1,
+      "description": "Grade code from DESAR Grade Configuration. e.g. A, B, C"
+    },
+    {
+      "fieldname": "grade_label",
+      "fieldtype": "Data",
+      "label": "Label",
+      "in_list_view": 1,
+      "columns": 2,
+      "read_only": 1,
+      "description": "Grade label. e.g. Premium, Standard, Scrap"
+    },
+    {
+      "fieldname": "qty",
+      "fieldtype": "Int",
+      "label": "Qty",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "default": "0",
+      "description": "Number of pieces in this grade. Inspector fills this."
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    },
+    {
+      "role": "Quality Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    }
+  ]
+}

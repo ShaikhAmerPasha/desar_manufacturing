@@ -1,0 +1,73 @@
+{
+  "name": "DESAR Roll Ticket Stage Grade",
+  "doctype": "DocType",
+  "module": "Desar Manufacturing",
+  "istable": 1,
+  "editable_grid": 1,
+  "track_changes": 0,
+  "description": "Grade summary per production stage on a Roll Ticket. One row per stage per grade. Replaces the hardcoded grey_qty_a/b/c, finished_qty_a/b/c, cutted_qty_a/b/c fields. Supports any number of stages and any number of grades.",
+  "fields": [
+    {
+      "fieldname": "stage_seq",
+      "fieldtype": "Int",
+      "label": "Stage Seq",
+      "in_list_view": 1,
+      "columns": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "stage_name",
+      "fieldtype": "Data",
+      "label": "Stage",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "read_only": 1,
+      "description": "Stage name from Design Master Stage Configuration"
+    },
+    {
+      "fieldname": "grade_code",
+      "fieldtype": "Data",
+      "label": "Grade",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "grade_label",
+      "fieldtype": "Data",
+      "label": "Label",
+      "in_list_view": 1,
+      "columns": 2,
+      "read_only": 1
+    },
+    {
+      "fieldname": "qty",
+      "fieldtype": "Int",
+      "label": "Qty",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "default": "0"
+    },
+    {
+      "fieldname": "qi_reference",
+      "fieldtype": "Link",
+      "label": "QI Reference",
+      "options": "Quality Inspection",
+      "read_only": 1,
+      "description": "QI document that provided this grade count"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1, "write": 1, "create": 1, "delete": 1
+    },
+    {
+      "role": "Manufacturing Manager",
+      "read": 1, "write": 1, "create": 1
+    }
+  ]
+}

@@ -1,16 +1,72 @@
 [
-  {
-    "name": "Quality Inspection-custom_roll_ticket",
-    "doctype": "Custom Field",
-    "dt": "Quality Inspection",
-    "fieldname": "custom_roll_ticket",
-    "fieldtype": "Link",
-    "label": "Roll Ticket",
-    "options": "Roll Ticket",
-    "insert_after": "custom_desar_section",
-    "read_only": 1,
-    "in_list_view": 0,
-    "print_hide": 0,
-    "description": "Auto-linked Roll Ticket. Set at QI creation time for fast lookup."
-  }
+ {
+  "name": "Quality Inspection-custom_roll_ticket",
+  "doctype": "Custom Field",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_roll_ticket",
+  "fieldtype": "Link",
+  "label": "Roll Ticket",
+  "options": "Roll Ticket",
+  "insert_after": "custom_desar_section",
+  "read_only": 1,
+  "in_list_view": 0,
+  "print_hide": 0,
+  "description": "Auto-linked Roll Ticket. Set at QI creation time for fast lookup."
+ },
+ {
+  "name": "Quality Inspection-custom_desar_grade_readings",
+  "doctype": "Custom Field",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_desar_grade_readings",
+  "fieldtype": "Table",
+  "label": "DESAR Grade Readings",
+  "options": "DESAR QI Grade Reading",
+  "insert_after": "custom_desar_section",
+  "description": "Dynamic grade count readings. Auto-populated from DESAR Grade Configuration when QI is created. One row per grade."
+ },
+ {
+  "name": "Quality Inspection-custom_desar_stage_name",
+  "doctype": "Custom Field",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_desar_stage_name",
+  "fieldtype": "Data",
+  "label": "DESAR Stage Name",
+  "insert_after": "custom_roll_ticket",
+  "read_only": 1,
+  "description": "Stage name from Design Master Stage Configuration. Set at QI creation time."
+ },
+ {
+  "name": "Quality Inspection-custom_desar_grade_adj_section",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_desar_grade_adj_section",
+  "fieldtype": "Section Break",
+  "label": "Grade Adjustments During Packing",
+  "description": "Fill when grades change during packing operations. Mandatory when Final QI grade counts differ from Finishing QI. Upgrades: B\u2192A. Downgrades: A\u2192B, A\u2192C.",
+  "depends_on": "eval:doc.custom_desar_stage_name == 'Packing'",
+  "collapsible": 0,
+  "doctype": "Custom Field"
+ },
+ {
+  "name": "Quality Inspection-custom_desar_grade_adjustments",
+  "dt": "Quality Inspection",
+  "fieldname": "custom_desar_grade_adjustments",
+  "fieldtype": "Table",
+  "label": "Grade Adjustments",
+  "options": "DESAR Grade Adjustment",
+  "description": "Record each grade movement during packing. Example: 3 pieces upgraded from B to A after ironing.",
+  "depends_on": "eval:doc.custom_desar_stage_name == 'Packing'",
+  "doctype": "Custom Field"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Job Card-custom_assigned_to",
+  "dt": "Job Card",
+  "fieldname": "custom_assigned_to",
+  "fieldtype": "Link",
+  "options": "User",
+  "label": "Assigned To",
+  "insert_after": "employee",
+  "in_list_view": 1,
+  "search_index": 1
+ }
 ]

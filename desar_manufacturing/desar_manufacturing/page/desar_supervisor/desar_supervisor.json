@@ -1,0 +1,13 @@
+{
+ "name": "desar-supervisor",
+ "page_name": "desar-supervisor",
+ "title": "Production Status",
+ "module": "Desar Manufacturing",
+ "doctype": "Page",
+ "system_page": 0,
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Manufacturing Manager"},
+  {"role": "DESAR Supervisor"}
+ ]
+}

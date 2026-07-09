@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "creation": "2026-07-06 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "roll_no",
+  "beam_roll_batch",
+  "roll_status",
+  "col_break_1",
+  "roll_ticket",
+  "section_grey",
+  "grey_roll_wo",
+  "grey_roll_batch",
+  "grey_roll_qi",
+  "grey_roll_status",
+  "section_finished",
+  "finished_roll_wo",
+  "finished_roll_batch",
+  "finished_roll_qi",
+  "finished_roll_status",
+  "section_packing",
+  "packing_wo",
+  "packing_manufacture_se",
+  "packing_qi",
+  "packing_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "roll_no",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Roll No",
+   "reqd": 1,
+   "width": "60px"
+  },
+  {
+   "fieldname": "beam_roll_batch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Beam Roll Batch",
+   "options": "Batch",
+   "width": "120px"
+  },
+  {
+   "fieldname": "roll_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Not Started\nIn Progress\nCompleted",
+   "default": "Not Started",
+   "read_only": 1,
+   "width": "110px"
+  },
+  {
+   "fieldname": "col_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "roll_ticket",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Roll Ticket",
+   "options": "Roll Ticket",
+   "read_only": 1,
+   "width": "130px"
+  },
+  {
+   "fieldname": "section_grey",
+   "fieldtype": "Section Break",
+   "label": "Grey Roll"
+  },
+  {
+   "fieldname": "grey_roll_wo",
+   "fieldtype": "Link",
+   "label": "Grey Roll WO",
+   "options": "Work Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grey_roll_batch",
+   "fieldtype": "Link",
+   "label": "Grey Roll Batch",
+   "options": "Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grey_roll_qi",
+   "fieldtype": "Link",
+   "label": "Grey Roll QI",
+   "options": "Quality Inspection",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grey_roll_status",
+   "fieldtype": "Select",
+   "label": "Grey Roll Status",
+   "options": "Locked\nNot Started\nIn Progress\nCompleted",
+   "default": "Locked",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_finished",
+   "fieldtype": "Section Break",
+   "label": "Finished Roll"
+  },
+  {
+   "fieldname": "finished_roll_wo",
+   "fieldtype": "Link",
+   "label": "Finished Roll WO",
+   "options": "Work Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_roll_batch",
+   "fieldtype": "Link",
+   "label": "Finished Roll Batch",
+   "options": "Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_roll_qi",
+   "fieldtype": "Link",
+   "label": "Finished Roll QI",
+   "options": "Quality Inspection",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_roll_status",
+   "fieldtype": "Select",
+   "label": "Finished Roll Status",
+   "options": "Locked\nNot Started\nIn Progress\nCompleted",
+   "default": "Locked",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_packing",
+   "fieldtype": "Section Break",
+   "label": "Packing"
+  },
+  {
+   "fieldname": "packing_wo",
+   "fieldtype": "Link",
+   "label": "Packing WO",
+   "options": "Work Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "packing_manufacture_se",
+   "fieldtype": "Link",
+   "label": "Packing Manufacture SE",
+   "options": "Stock Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "packing_qi",
+   "fieldtype": "Link",
+   "label": "Packing QI",
+   "options": "Quality Inspection",
+   "read_only": 1
+  },
+  {
+   "fieldname": "packing_status",
+   "fieldtype": "Select",
+   "label": "Packing Status",
+   "options": "Locked\nNot Started\nIn Progress\nCompleted",
+   "default": "Locked",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Desar Manufacturing",
+ "name": "DESAR Roll Chain",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

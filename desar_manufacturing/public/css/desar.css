@@ -1,14 +1,90 @@
-/* DESAR Manufacturing CSS */
-/* Roll Ticket status colors */
-.indicator-pill[data-indicator="In Grey Store"] {
-    --indicator-color: #2490ef;
+/* DESAR Manufacturing — UI/UX Improvements v3.5 */
+
+/* ── Job Card — DESAR buttons prominent ──────────────────────────────────── */
+.btn-group-desar .btn {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 6px;
 }
-.indicator-pill[data-indicator="In Finishing"] {
-    --indicator-color: #ff6b6b;
+
+/* Transfer Materials — blue */
+.btn[data-label="Transfer Materials"] {
+    background-color: #2E86AB !important;
+    color: white !important;
+    border-color: #2E86AB !important;
 }
-.indicator-pill[data-indicator="In Packing"] {
-    --indicator-color: #fcb410;
+
+/* Complete & Finish WO — green */
+.btn[data-label="Complete & Finish WO"] {
+    background-color: #27ae60 !important;
+    color: white !important;
+    border-color: #27ae60 !important;
 }
-.indicator-pill[data-indicator="Completed"] {
-    --indicator-color: #38a169;
+
+/* ── Roll Ticket — Grade Summary ─────────────────────────────────────────── */
+.desar-grade-summary {
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 500;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+}
+
+/* ── Quality Inspection — Grade readings table ───────────────────────────── */
+.field-area[data-fieldname="custom_desar_grade_readings"] .grid-heading-row {
+    background: var(--subtle-bg);
+    font-weight: 600;
+}
+
+/* ── Work Order — highlight DESAR fields ─────────────────────────────────── */
+.field-area[data-fieldname="custom_design_no"] .control-label,
+.field-area[data-fieldname="custom_article_name"] .control-label,
+.field-area[data-fieldname="custom_design_master"] .control-label {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* ── Plant Floor — make machine cards bigger on mobile ───────────────────── */
+@media (max-width: 768px) {
+    .plant-floor-machine-card {
+        min-height: 120px !important;
+        font-size: 16px !important;
+    }
+
+    .plant-floor-job-card-item {
+        padding: 12px !important;
+        font-size: 15px !important;
+    }
+
+    /* Make buttons bigger on mobile for factory workers */
+    .btn-primary, .btn-success, .btn-default {
+        min-height: 44px;
+        font-size: 15px;
+    }
+}
+
+/* ── Workspace cards — DESAR workspaces ─────────────────────────────────── */
+.workspace-shortcut-card {
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.workspace-shortcut-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+}
+
+/* ── Success/Error alerts — more visible ─────────────────────────────────── */
+.alert-desar {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    z-index: 9999;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }

@@ -12,6 +12,48 @@ def after_install():
     frappe.db.commit()
 
 
+def after_migrate():
+    """
+    Run after every migrate.
+    Ensures critical DESAR DocTypes are not orphaned.
+    Frappe orphan detection can delete DocTypes if module mapping
+    is lost during migrate. This hook re-imports them if needed.
+    """
+    import os
+    from frappe.modules.import_file import import_file_by_path
+
+    critical_doctypes = [
+        "roll_ticket",
+        "design_master",
+        "warp_recipe",
+        "weft_recipe",
+        "desar_settings",
+    ]
+
+    for dt_folder in critical_doctypes:
+        dt_name = dt_folder.replace("_", " ").title()
+        module = frappe.db.get_value("DocType", dt_name, "module")
+        if not module:
+            path = os.path.join(
+                frappe.get_app_path("desar_manufacturing"),
+                "desar_manufacturing", "doctype", dt_folder,
+                f"{dt_folder}.json"
+            )
+            if os.path.exists(path):
+                try:
+                    import_file_by_path(path, force=True)
+                    frappe.logger().info(
+                        f"DESAR after_migrate: Reimported {dt_name}"
+                    )
+                except Exception:
+                    frappe.log_error(
+                        title=f"DESAR: Failed to reimport {dt_name}",
+                        message=frappe.get_traceback()
+                    )
+
+    frappe.db.commit()
+
+
 def _create_desar_settings():
     """Create default DESAR Settings singleton if it doesn't exist."""
     if frappe.db.exists("DESAR Settings"):
