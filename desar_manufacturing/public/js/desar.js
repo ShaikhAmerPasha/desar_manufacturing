@@ -62,43 +62,96 @@ frappe.ui.form.on("Work Order", {
 
     /**
      * When BOM is selected on WO:
-     * Auto-fill Design No, Article Name, Design Master from BOM custom fields.
-     * Only fills if not already set by user.
+     * 1. Auto-fill Design No, Article Name, Design Master from BOM custom fields.
+     * 2. Auto-set skip_transfer based on Stage Configuration.
+     *    Done client-side BEFORE submit — because skip_transfer is not allow_on_submit.
      */
     bom_no(frm) {
         if (!frm.doc.bom_no) return;
 
-        frappe.db.get_value(
-            "BOM",
-            frm.doc.bom_no,
-            ["custom_design_no", "custom_article_name", "custom_design_master"]
-        ).then(({ message: m }) => {
-            if (!m) return;
-            if (m.custom_design_no     && !frm.doc.custom_design_no)
-                frm.set_value("custom_design_no",     m.custom_design_no);
-            if (m.custom_article_name  && !frm.doc.custom_article_name)
-                frm.set_value("custom_article_name",  m.custom_article_name);
-            if (m.custom_design_master && !frm.doc.custom_design_master)
-                frm.set_value("custom_design_master", m.custom_design_master);
+        frappe.call({
+            method: "desar_manufacturing.api.manufacturing.get_bom_design_context",
+            args: { bom_no: frm.doc.bom_no },
+            callback({ message: m }) {
+                if (!m) return;
+                if (m.custom_design_no     && !frm.doc.custom_design_no)
+                    frm.set_value("custom_design_no",     m.custom_design_no);
+                if (m.custom_article_name  && !frm.doc.custom_article_name)
+                    frm.set_value("custom_article_name",  m.custom_article_name);
+                if (m.custom_design_master && !frm.doc.custom_design_master)
+                    frm.set_value("custom_design_master", m.custom_design_master);
+
+                if (m.custom_design_master && frm.doc.production_item) {
+                    _desar_set_skip_transfer(frm, m.custom_design_master);
+                }
+            }
         });
     },
 
     /**
+     * When production_item changes — re-evaluate skip_transfer.
+     */
+    production_item(frm) {
+        const dm = frm.doc.custom_design_master;
+        if (dm && frm.doc.production_item) {
+            _desar_set_skip_transfer(frm, dm);
+        }
+    },
+
+    /**
      * On form refresh of a SUBMITTED Work Order:
-     * Dynamic QI buttons are added by the second handler below.
-     * Legacy fallback is handled inside _desar_load_stage_config callback.
+     * Try dynamic stage config first, fallback to legacy.
      */
     refresh(frm) {
         if (frm.doc.docstatus !== 1) return;
-        // QI buttons are handled by dynamic handler at bottom of file
-        // which falls back to legacy if no Stage Configuration found
+
+        _desar_load_stage_config(frm, (stages) => {
+            if (stages && stages.length > 0) {
+                _desar_add_dynamic_qi_buttons(frm, stages);
+            } else {
+                _desar_maybe_add_qi_button(frm);
+            }
+        });
     },
 
 });
 
 
 /**
- * Determine the correct QI stage for this Work Order's production item.
+ * Auto-set skip_transfer on Work Order based on Stage Configuration.
+ *
+ * Called client-side when BOM or production_item changes — BEFORE submit.
+ * skip_transfer is not allow_on_submit in ERPNext, so must be set before submit.
+ *
+ * Logic (researched from ERPNext v15 source):
+ * - Warping/Weaving stages: skip_transfer = 1 (backflush — no Transfer SE needed)
+ * - Finishing/Packing stages: skip_transfer = 0 (chemicals/accessories need confirmation)
+ * - Unknown stages: skip_transfer = 0 (safe default)
+ */
+function _desar_set_skip_transfer(frm, design_master) {
+    frappe.call({
+        method: "desar_manufacturing.api.manufacturing.get_stage_skip_transfer",
+        args: { design_master, production_item: frm.doc.production_item },
+        callback({ message: stage }) {
+            if (!stage) return;
+            let should_skip = 0;
+            if (stage.skip_transfer) {
+                should_skip = 1;
+            } else {
+                const name_lower = (stage.stage_name || "").toLowerCase();
+                if (name_lower.includes("warp") || name_lower.includes("weav")) {
+                    should_skip = 1;
+                }
+            }
+            if (frm.doc.skip_transfer !== should_skip) {
+                frm.set_value("skip_transfer", should_skip);
+            }
+        }
+    });
+}
+
+
+/**
  * Returns null if this WO does not need a QI button (e.g. Warping Beam).
  */
 function _desar_get_qi_config(production_item) {
@@ -125,16 +178,15 @@ function _desar_maybe_add_qi_button(frm) {
     const config = _desar_get_qi_config(frm.doc.production_item);
     if (!config) return;
 
-    frappe.db.count("Stock Entry", {
-        work_order:       frm.doc.name,
-        stock_entry_type: "Manufacture",
-        docstatus:        1,
-    }).then(count => {
-        if (!count) return;  // WO not finished — no button yet
-
-        frm.add_custom_button(config.label, () => {
-            _desar_create_qi(frm, config.stage, config.label);
-        }, __("DESAR QC"));
+    frappe.call({
+        method: "desar_manufacturing.api.manufacturing.check_manufacture_se_exists",
+        args: { work_order: frm.doc.name },
+        callback({ message: exists }) {
+            if (!exists) return;
+            frm.add_custom_button(config.label, () => {
+                _desar_create_qi(frm, config.stage, config.label);
+            }, __("DESAR QC"));
+        }
     });
 }
 
@@ -324,16 +376,13 @@ function _desar_add_dynamic_qi_buttons(frm, stages) {
     if (!matching_stage.qi_required) return;
 
     // Only show button if Manufacture SE exists
-    frappe.db.count("Stock Entry", {
-        work_order: frm.doc.name,
-        stock_entry_type: "Manufacture",
-        docstatus: 1,
-    }).then(count => {
-        if (!count) return;
+    frappe.call({
+        method: "desar_manufacturing.api.manufacturing.check_manufacture_se_exists",
+        args: { work_order: frm.doc.name },
+        callback({ message: exists }) {
+            if (!exists) return;
 
-        // Label: "Create {output_item} Inspection"
-        // e.g. "Create Grey Roll Inspection" or "Create Shemagh-VIC-60-A Inspection"
-        const label = __("Create {0} Inspection", [matching_stage.output_item]);
+            const label = __("Create {0} Inspection", [matching_stage.output_item]);
 
         frm.add_custom_button(label, () => {
             frappe.confirm(
@@ -353,24 +402,145 @@ function _desar_add_dynamic_qi_buttons(frm, stages) {
                 }
             );
         }, __("DESAR QC"));
+        }
     });
 }
 
-// Override the refresh handler to try dynamic first, fallback to legacy
-const _original_wo_refresh = frappe.ui.form.on;
+// ══════════════════════════════════════════════════════════════════════════
+// JOB CARD — 3 DESAR buttons for 4-WO architecture
+//
+// Button 1: "Transfer Materials" — creates Transfer SE, redirects for batch selection
+// Button 2: "Complete & Finish WO" — auto-creates Manufacture SE (no navigation)
+// Button 3: "Create [Item] Inspection" — creates QI after WO finished
+// ══════════════════════════════════════════════════════════════════════════
 
-frappe.ui.form.on("Work Order", {
+frappe.ui.form.on("Job Card", {
+    refresh(frm) {
+        if (frm.doc.docstatus !== 1) return;
+        if (!frm.doc.work_order) return;
+
+        frappe.call({
+            method: "desar_manufacturing.api.manufacturing.get_job_card_actions",
+            args: { work_order: frm.doc.work_order },
+            callback: (r) => {
+                if (!r.message) return;
+                const cfg = r.message;
+
+                // Button 1: Transfer Materials
+                // Shows when Transfer SE not yet created and WO needs transfer
+                if (cfg.can_transfer) {
+                    frm.add_custom_button(
+                        __("Transfer Materials"),
+                        () => {
+                            frappe.confirm(
+                                __("Create Material Transfer for this Work Order?"),
+                                () => {
+                                    frappe.call({
+                                        method: "desar_manufacturing.api.manufacturing.create_transfer_se",
+                                        args: { work_order: frm.doc.work_order },
+                                        freeze: true,
+                                        freeze_message: __("Creating Transfer Entry..."),
+                                        callback: (r) => {
+                                            if (r.message && r.message.se_name) {
+                                                frappe.show_alert({
+                                                    message: __("Transfer Entry {0} created. Please select batch and submit.", [r.message.se_name]),
+                                                    indicator: "blue"
+                                                });
+                                                frappe.set_route("Form", "Stock Entry", r.message.se_name);
+                                            }
+                                        }
+                                    });
+                                }
+                            );
+                        },
+                        __("DESAR")
+                    );
+                }
+
+                // Button 2: Complete & Finish WO
+                // Shows when all Job Cards done and Transfer SE submitted
+                if (cfg.can_finish) {
+                    frm.add_custom_button(
+                        __("Complete & Finish WO"),
+                        () => {
+                            frappe.confirm(
+                                __("Finish Work Order and create Manufacture Entry automatically?"),
+                                () => {
+                                    frappe.call({
+                                        method: "desar_manufacturing.api.manufacturing.finish_work_order",
+                                        args: { work_order: frm.doc.work_order },
+                                        freeze: true,
+                                        freeze_message: __("Creating Manufacture Entry..."),
+                                        callback: (r) => {
+                                            if (r.message && r.message.se_name) {
+                                                frappe.show_alert({
+                                                    message: __("Manufacture Entry {0} created ✓", [r.message.se_name]),
+                                                    indicator: "green"
+                                                });
+                                                frm.reload_doc();
+                                            }
+                                        }
+                                    });
+                                }
+                            );
+                        },
+                        __("DESAR")
+                    );
+                }
+
+                // Button 3: Create QI
+                // Shows after WO finished and QI not yet created
+                if (cfg.qi_config && !cfg.qi_config.qi_exists && cfg.qi_config.stage_name) {
+                    frm.add_custom_button(
+                        __("Create {0} Inspection", [cfg.qi_config.production_item || cfg.qi_config.stage_name]),
+                        () => {
+                            frappe.confirm(
+                                __("Create {0} Quality Inspection?", [cfg.qi_config.stage_name]),
+                                () => {
+                                    frappe.call({
+                                        method: "desar_manufacturing.api.manufacturing.create_quality_inspection_dynamic",
+                                        args: {
+                                            work_order: frm.doc.work_order,
+                                            stage_name: cfg.qi_config.stage_name,
+                                        },
+                                        callback: (r) => {
+                                            if (r.message) {
+                                                frappe.show_alert({
+                                                    message: __("QI {0} created", [r.message]),
+                                                    indicator: "green"
+                                                });
+                                                frappe.set_route("Form", "Quality Inspection", r.message);
+                                            }
+                                        }
+                                    });
+                                }
+                            );
+                        },
+                        __("DESAR QC")
+                    );
+                } else if (cfg.qi_config && cfg.qi_config.qi_exists) {
+                    frm.set_intro(__("Quality Inspection already created ✓"), "green");
+                }
+            }
+        });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// PRODUCTION PLAN — redirect to Controller after creating Work Orders
+// ══════════════════════════════════════════════════════════════════════════
+
+frappe.ui.form.on("Production Plan", {
     refresh(frm) {
         if (frm.doc.docstatus !== 1) return;
 
-        // Try dynamic stage config first
-        _desar_load_stage_config(frm, (stages) => {
-            if (stages && stages.length > 0) {
-                _desar_add_dynamic_qi_buttons(frm, stages);
-            } else {
-                // Fallback to legacy buttons
-                _desar_maybe_add_qi_button(frm);
-            }
-        });
+        // Add shortcut button to open Controller for this PP
+        const has_wos = frm.doc.status === "Submitted";
+        if (has_wos) {
+            frm.add_custom_button(__("Open Production Controller"), () => {
+                frappe.set_route("production-controller", { pp: frm.doc.name });
+                window.location.href = `/desar-production-controller?pp=${frm.doc.name}`;
+            }, __("DESAR"));
+        }
     },
 });

@@ -1,0 +1,280 @@
+/* DESAR Production Controller — Complete UI v3.6 */
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+.desar-ctrl { max-width: 860px; margin: 0 auto; padding: 12px; }
+
+.dc-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+.dc-title { font-size: 16px; font-weight: 500; flex: 1; }
+.dc-order-so { font-size: 12px; color: var(--text-muted); }
+.dc-loading, .dc-empty {
+    text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px;
+}
+
+/* ── Supervisor: Order Cards ───────────────────────────────────────────── */
+.dc-order-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 14px;
+    cursor: pointer;
+    background: var(--card-bg);
+    transition: box-shadow 0.15s, transform 0.15s;
+}
+.dc-order-card:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+.dc-order-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.dc-order-name { font-weight: 500; font-size: 15px; }
+.dc-pct { font-weight: 600; font-size: 14px; }
+.dc-progress-bar {
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.dc-progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.dc-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.dc-pill {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--subtle-bg);
+    border: 1px solid var(--border-color);
+}
+
+/* ── Supervisor: Stage Detail ──────────────────────────────────────────── */
+.dc-stages { margin-bottom: 16px; }
+.dc-stage {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--card-bg);
+    overflow: hidden;
+}
+.dc-stage.dc-done { border-color: #27ae60; }
+.dc-stage.dc-locked { opacity: 0.6; }
+.dc-stage-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--subtle-bg);
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+.dc-stage-icon { font-size: 16px; }
+.dc-stage-name { font-weight: 500; font-size: 14px; flex: 1; }
+.dc-stage-item { font-size: 12px; color: var(--text-muted); }
+.dc-badge-locked {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--border-color);
+    color: var(--text-muted);
+}
+.dc-actions {
+    padding: 10px 14px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.dc-jc-section { padding: 8px 14px; border-top: 1px solid var(--border-color); }
+.dc-jc-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.dc-jc-pill {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--subtle-bg);
+    border: 1px solid var(--border-color);
+}
+.dc-assignee { font-size: 11px; color: var(--text-muted); margin-left: 4px; }
+
+/* ── Stock Entries Section ─────────────────────────────────────────────── */
+.dc-se-box {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 16px;
+}
+.dc-se-title {
+    padding: 8px 14px;
+    background: var(--subtle-bg);
+    font-weight: 500;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-color);
+}
+.dc-se-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    font-size: 13px;
+}
+.dc-se-row:last-child { border-bottom: none; }
+.dc-se-row.dc-se-alert { background: #fffdf0; }
+.dc-se-label { flex: 1; font-weight: 500; }
+.dc-se-date { color: var(--text-muted); font-size: 12px; }
+
+/* ── Operator View ─────────────────────────────────────────────────────── */
+.dc-empty-operator {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+.dc-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.dc-empty-text { font-size: 16px; }
+
+.dc-op-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 16px;
+    background: var(--card-bg);
+}
+.dc-op-card.dc-op-done-card {
+    border-color: #27ae60;
+    opacity: 0.75;
+}
+.dc-op-stage {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+.dc-op-order { font-size: 14px; color: var(--text-muted); margin-bottom: 4px; }
+.dc-op-workstation { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+.dc-op-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Big buttons for operators (mobile-friendly) */
+.dc-op-btn {
+    flex: 1;
+    min-height: 52px;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.dc-op-btn:active { opacity: 0.8; }
+.dc-op-start { background: #2E86AB; color: white; }
+.dc-op-complete { background: #27ae60; color: white; }
+.dc-op-done { font-size: 15px; color: #27ae60; font-weight: 500; align-self: center; }
+.dc-op-btn-sm {
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    cursor: pointer;
+    min-height: 40px;
+}
+
+/* ── QC Inspector View ─────────────────────────────────────────────────── */
+.dc-qc-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 16px;
+    background: var(--card-bg);
+    border-left: 4px solid #2E86AB;
+}
+
+/* ── Store Manager View ────────────────────────────────────────────────── */
+.dc-store-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 16px;
+    background: var(--card-bg);
+    border-left: 4px solid #e67e22;
+}
+.dc-store-badge {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e67e22;
+    margin-bottom: 8px;
+}
+.dc-store-grades {
+    display: flex;
+    gap: 12px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+}
+.dc-grade-a { color: #27ae60; font-weight: 500; font-size: 14px; }
+.dc-grade-b { color: #e67e22; font-weight: 500; font-size: 14px; }
+.dc-grade-c { color: #e74c3c; font-weight: 500; font-size: 14px; }
+
+/* ── Supervisor Dashboard ──────────────────────────────────────────────── */
+.desar-supervisor { max-width: 900px; margin: 0 auto; padding: 12px; }
+.desar-sup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+.desar-sup-header h3 { margin: 0; font-size: 16px; }
+.desar-sup-loading, .desar-sup-empty {
+    text-align: center; padding: 32px; color: var(--text-muted);
+}
+.desar-sup-card {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: var(--card-bg);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+.desar-sup-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--subtle-bg);
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.desar-progress-wrap { display: flex; align-items: center; gap: 8px; }
+.desar-progress-bar {
+    width: 120px; height: 8px;
+    background: var(--border-color);
+    border-radius: 4px; overflow: hidden;
+}
+.desar-progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.desar-pct { font-size: 13px; font-weight: 600; min-width: 36px; }
+.desar-stages { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.desar-stage-pill {
+    padding: 4px 10px; border-radius: 20px; font-size: 13px;
+    background: var(--subtle-bg); border: 1px solid var(--border-color);
+}
+.desar-stage-pill.done { background: #f0fff4; border-color: #27ae60; }
+.desar-stage-pill.active { background: #e8f4fd; border-color: #2E86AB; }
+
+/* ── Mobile responsive ─────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .desar-ctrl, .desar-supervisor { padding: 8px; }
+    .dc-header { flex-direction: column; align-items: flex-start; }
+    .dc-actions { flex-direction: column; }
+    .dc-actions .btn { width: 100%; }
+    .dc-op-btn { min-height: 60px; font-size: 18px; }
+    .desar-progress-bar { width: 80px; }
+}

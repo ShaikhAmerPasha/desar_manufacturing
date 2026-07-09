@@ -81,17 +81,3 @@ def _create_desar_settings():
         settings.insert(ignore_permissions=True)
     except Exception:
         pass  # Settings may already exist or warehouses may not exist yet
-
-def after_migrate():
-    import os
-    from frappe.modules.import_file import import_file_by_path
-    for dt_folder in ["roll_ticket", "design_master", "warp_recipe", "weft_recipe"]:
-        dt_name = dt_folder.replace("_", " ").title()
-        if not frappe.db.get_value("DocType", dt_name, "module"):
-            path = os.path.join(
-                frappe.get_app_path("desar_manufacturing"),
-                "desar_manufacturing", "doctype", dt_folder, f"{dt_folder}.json"
-            )
-            if os.path.exists(path):
-                import_file_by_path(path, force=True)
-    frappe.db.commit()

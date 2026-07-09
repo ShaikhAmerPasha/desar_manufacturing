@@ -4,51 +4,40 @@ app_publisher   = "DESAR Factory"
 app_description = "Shemagh Manufacturing Module for DESAR Factory - ERPNext v15"
 app_email       = "it@desarfactory.com"
 app_license     = "MIT"
-app_version     = "2.3.0"
+app_version     = "3.6.0"
 
 required_apps = ["frappe", "erpnext"]
 
 after_install = "desar_manufacturing.install.setup.after_install"
 after_migrate = ["desar_manufacturing.install.setup.after_migrate"]
-after_migrate = ["desar_manufacturing.install.setup.after_migrate"]
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
-# Exact name-based list — stable, does not break on rename
 fixtures = [
     {
         "dt": "Custom Field",
         "filters": [["name", "in", [
-            # Batch fields — for beam/roll traceability
             "Batch-custom_article",
             "Batch-custom_design_no",
             "Batch-custom_size",
             "Batch-custom_parent_beam_batch",
             "Batch-custom_machine_no",
             "Batch-custom_operator",
-            # Work Order fields — design context
             "Work Order-custom_design_no",
             "Work Order-custom_article_name",
             "Work Order-custom_design_master",
-            # Job Card fields — operator tracking
-            "Job Card-custom_operator_name",
-            "Job Card-custom_meters_produced",
-            # Quality Inspection — Dynamic grade system
             "Quality Inspection-custom_roll_ticket",
             "Quality Inspection-custom_desar_grade_readings",
             "Quality Inspection-custom_desar_stage_name",
-            # Stock Entry — source QI traceability
+            "Quality Inspection-custom_desar_grade_adj_section",
+            "Quality Inspection-custom_desar_grade_adjustments",
             "Stock Entry-custom_source_qi",
-            # BOM — design master linkage
             "BOM-custom_design_no",
             "BOM-custom_article_name",
             "BOM-custom_design_master",
+            "Job Card-custom_assigned_to",
         ]]],
     },
 ]
 
-# ── Doc Events ────────────────────────────────────────────────────────────────
-# All handlers are THIN — they validate trigger, delegate to services.
-# No business logic in event handlers.
 doc_events = {
     "Stock Entry": {
         "on_submit": "desar_manufacturing.events.stock_entry.on_submit",
@@ -58,22 +47,27 @@ doc_events = {
         "on_submit":     "desar_manufacturing.events.quality_inspection.on_submit",
     },
     "Work Order": {
+        "validate":      "desar_manufacturing.events.work_order.validate",
         "before_submit": "desar_manufacturing.events.work_order.before_submit",
     },
-    # Clear settings cache when DESAR Settings is saved
-    # Uses module-level wrapper function — required by Frappe doc_events
     "DESAR Settings": {
         "on_update": "desar_manufacturing.config.settings_manager.on_settings_update",
     },
 }
 
-# ── Scheduled Tasks ───────────────────────────────────────────────────────────
+doctype_js = {
+	"Production Plan": "public/js/production_plan.js"
+}
+
 scheduler_events = {
     "daily": [
         "desar_manufacturing.tasks.daily.update_wip_report",
     ],
 }
 
-# ── Assets ────────────────────────────────────────────────────────────────────
-app_include_css = "/assets/desar_manufacturing/css/desar.css"
-app_include_js  = "/assets/desar_manufacturing/js/desar.js"
+app_include_css = [
+    "/assets/desar_manufacturing/css/desar.css",
+    "/assets/desar_manufacturing/css/desar_workspace.css",
+]
+app_include_js = "/assets/desar_manufacturing/js/desar.js"
+

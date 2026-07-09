@@ -1,0 +1,16 @@
+{
+ "name": "desar-production-controller",
+ "page_name": "desar-production-controller",
+ "title": "Production Controller",
+ "module": "Desar Manufacturing",
+ "doctype": "Page",
+ "system_page": 0,
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Manufacturing Manager"},
+  {"role": "DESAR Supervisor"},
+  {"role": "DESAR Operator"},
+  {"role": "DESAR QC Inspector"},
+  {"role": "DESAR Store Manager"}
+ ]
+}

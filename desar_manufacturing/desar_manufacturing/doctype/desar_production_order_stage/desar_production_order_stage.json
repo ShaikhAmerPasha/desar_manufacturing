@@ -1,0 +1,130 @@
+{
+ "name": "DESAR Production Order Stage",
+ "module": "Desar Manufacturing",
+ "doctype": "DocType",
+ "istable": 1,
+ "editable_grid": 0,
+ "track_changes": 0,
+ "fields": [
+  {
+   "fieldname": "stage_seq",
+   "fieldtype": "Int",
+   "label": "Seq",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "stage_name",
+   "fieldtype": "Data",
+   "label": "Stage",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "stage_status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Locked\nNot Started\nWO Submitted\nIn Progress\nCompleted",
+   "default": "Locked",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "options": "Work Order",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "output_item",
+   "fieldtype": "Link",
+   "label": "Output Item",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "batch_no",
+   "fieldtype": "Link",
+   "label": "Batch",
+   "options": "Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "roll_ticket",
+   "fieldtype": "Link",
+   "label": "Roll Ticket",
+   "options": "Roll Ticket",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_se",
+   "fieldtype": "Section Break",
+   "label": "Stock Entries"
+  },
+  {
+   "fieldname": "transfer_se",
+   "fieldtype": "Link",
+   "label": "Transfer SE",
+   "options": "Stock Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "manufacture_se",
+   "fieldtype": "Link",
+   "label": "Manufacture SE",
+   "options": "Stock Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qi",
+   "fieldtype": "Link",
+   "label": "Quality Inspection",
+   "options": "Quality Inspection",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qi_required",
+   "fieldtype": "Check",
+   "label": "QI Required",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_first_stage",
+   "fieldtype": "Check",
+   "label": "Is First Stage",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "is_final_stage",
+   "fieldtype": "Check",
+   "label": "Is Final Stage",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "skip_transfer",
+   "fieldtype": "Check",
+   "label": "Skip Transfer",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "write": 1, "create": 1}]
+}

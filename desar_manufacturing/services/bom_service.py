@@ -28,155 +28,137 @@ class BOMService:
     @classmethod
     def create_all_boms(cls, design_master_name: str) -> dict:
         """
-        Create all BOMs from a Design Master.
+        Create BOMs from a Design Master.
 
-        Dynamic mode: reads Stage Configuration child table.
-        Legacy mode: creates 4 fixed BOMs.
+        Dynamic mode (stage_configuration filled):
+          Creates one BOM per stage (4-WO mode).
 
-        Returns:
-            Dict of stage name/level to BOM name
+        Legacy mode (stage_configuration empty):
+          Creates 4 fixed BOMs.
         """
         dm = frappe.get_doc("Design Master", design_master_name)
         cls._validate_design_master(dm)
 
-        # Check if Stage Configuration is filled
+        # Dynamic 4-WO mode
         if dm.get("stage_configuration"):
             return cls._create_boms_dynamic(dm)
-        else:
-            return cls._create_boms_legacy(dm)
 
-    # ── Dynamic mode ──────────────────────────────────────────────────────────
+        # Legacy 4-WO mode
+        return cls._create_boms_legacy(dm)
+
+    # ── Dynamic 4-WO mode ─────────────────────────────────────────────────────
 
     @classmethod
     def _create_boms_dynamic(cls, dm) -> dict:
         """
-        Create BOMs from Stage Configuration child table.
-        Each stage row defines one BOM level.
+        Create one BOM per stage from Stage Configuration.
+        Saves BOM name back to Stage Configuration bom_no field.
+        Uses input_item from previous stage as component.
         """
+        stages = sorted(dm.stage_configuration, key=lambda s: s.stage_seq or 0)
         results = {}
-        stages = sorted(dm.stage_configuration, key=lambda s: s.stage_seq)
+        prev_output_item = None
 
         for stage in stages:
-            # Skip if BOM already exists for this stage
             if stage.bom_no and frappe.db.exists("BOM", stage.bom_no):
+                prev_output_item = stage.output_item
+                results[stage.stage_name] = stage.bom_no
+                continue  # BOM already exists
+
+            output_item = stage.output_item
+            if not output_item:
                 continue
 
-            bom_name = cls._create_bom_for_stage(dm, stage, stages)
-            if bom_name:
-                # Update bom_no on the stage row
-                frappe.db.set_value(
-                    "DESAR Stage Configuration",
-                    stage.name,
-                    "bom_no",
-                    bom_name
-                )
-                results[f"stage_{stage.stage_seq}_{stage.stage_name}"] = bom_name
+            output_qty = flt(stage.output_qty or 1)
+            stage_lower = (stage.stage_name or "").lower()
 
+            # Build BOM items
+            bom_items = []
+
+            # Add previous stage output as input
+            if prev_output_item:
+                source_wh = cls._get_source_wh_for_stage(stage_lower)
+                bom_items.append(cls._make_bom_item(
+                    prev_output_item, 1, "Nos", source_wh
+                ))
+
+            # Add yarn for Warping stage
+            if "warp" in stage_lower and dm.warp_recipe:
+                bom_items.extend(cls._get_yarn_items(dm))
+
+            # Add chemicals for Finishing/Dyeing stage
+            if "finish" in stage_lower or "dye" in stage_lower:
+                bom_items.extend(cls._get_chemical_items(dm))
+
+            # Add accessories for Packing/Final stage
+            if stage.is_final_stage:
+                bom_items.extend(cls._get_accessory_items(dm, int(output_qty)))
+
+            # Build operations
+            operations = []
+            if stage.get("operations"):
+                for op in sorted(stage.operations, key=lambda o: o.sequence_id or 0):
+                    operations.append({
+                        "operation":    op.operation,
+                        "workstation":  op.workstation,
+                        "time_in_mins": flt(op.time_in_mins),
+                    })
+            if not operations:
+                default_ws = cls._get_default_workstation(stage.stage_name)
+                if default_ws:
+                    operations.append({
+                        "operation":    stage.stage_name,
+                        "workstation":  default_ws,
+                        "time_in_mins": 60,
+                    })
+
+            # Create BOM
+            try:
+                bom_name = cls._insert_and_submit_bom({
+                    "item":     output_item,
+                    "quantity": output_qty,
+                    "items":    bom_items,
+                    "operations": operations,
+                    "custom_design_no":      dm.design_no,
+                    "custom_article_name":   dm.article_name,
+                    "custom_design_master":  dm.name,
+                })
+
+                # Save BOM name back to Stage Configuration
+                frappe.db.set_value(
+                    "DESAR Stage Configuration", stage.name, "bom_no", bom_name
+                )
+                results[stage.stage_name] = bom_name
+                prev_output_item = output_item
+
+            except Exception:
+                frappe.log_error(
+                    title=f"DESAR: BOM creation failed for stage {stage.stage_name}",
+                    message=frappe.get_traceback()
+                )
+
+        frappe.db.commit()
         if results:
             frappe.msgprint(
-                _("Created {0} BOM(s): {1}").format(
+                _("Created {0} BOM(s) in Draft: {1}").format(
                     len(results), ", ".join(results.values())
                 ),
                 alert=True,
             )
-        else:
-            frappe.msgprint(_("All BOMs already exist for this Design Master"), alert=True)
-
         return results
 
     @classmethod
-    def _create_bom_for_stage(cls, dm, stage, all_stages) -> Optional[str]:
-        """
-        Create a single BOM for a stage.
-
-        Input items are determined by:
-        1. Previous stage's output item (if any)
-        2. Warp Recipe items (for first stage)
-        3. Chemical items (from Design Master)
-        4. Accessories (from Design Master)
-        """
-        stage_seq = stage.stage_seq
-        output_item = stage.output_item
-
-        if not output_item:
-            frappe.throw(_("Stage {0} has no output item defined.").format(stage.stage_name))
-
-        # Build input items
-        bom_items = []
-
-        # Previous stage output becomes this stage's input
-        prev_stages = [s for s in all_stages if s.stage_seq < stage_seq]
-        if prev_stages:
-            prev_stage = sorted(prev_stages, key=lambda s: s.stage_seq)[-1]
-            bom_items.append(cls._make_bom_item(
-                item_code=prev_stage.output_item,
-                qty=1,
-                uom="Nos",
-                source_warehouse=cls._get_wip_warehouse_for_item(prev_stage.output_item),
-            ))
-
-        # First stage — add yarn from Warp Recipe
-        if not prev_stages and dm.warp_recipe:
-            bom_items.extend(cls._get_yarn_items(dm))
-
-        # Chemical items (if this stage produces Finished Roll)
-        if output_item == FINISHED_ROLL or "finish" in stage.stage_name.lower():
-            bom_items.extend(cls._get_chemical_items(dm))
-
-        # Accessories (if this is the final stage)
-        if stage.is_final_stage:
-            bom_items.extend(cls._get_accessory_items(dm, int(stage.output_qty or 50)))
-
-        # Build operations from Stage Operations child table
-        operations = []
-        if stage.get("operations"):
-            for op in sorted(stage.operations, key=lambda o: o.sequence_id or 0):
-                operations.append({
-                    "operation":    op.operation,
-                    "workstation":  op.workstation,
-                    "time_in_mins": flt(op.time_in_mins),
-                })
-
-        # If no operations defined in Stage Config, add a default one
-        # named after the stage itself — client can update later
-        if not operations:
-            default_ws = cls._get_default_workstation(stage.stage_name)
-            if default_ws:
-                operations.append({
-                    "operation":    stage.stage_name,
-                    "workstation":  default_ws,
-                    "time_in_mins": 60,
-                })
-
-        return cls._insert_and_submit_bom({
-            "item":               output_item,
-            "quantity":           flt(stage.output_qty) or 1,
-            "items":              bom_items,
-            "operations":         operations,
-            "custom_design_no":   dm.design_no,
-            "custom_article_name": dm.article_name,
-            "custom_design_master": dm.name,
-        })
-
-    @classmethod
-    def _get_wip_warehouse_for_item(cls, item_code: str) -> str:
-        """Get appropriate source warehouse for an intermediate item."""
-        if item_code == WARPING_BEAM:
-            return frappe.db.get_single_value("DESAR Settings", "warping_wip_warehouse") or ""
-        elif item_code == GREY_ROLL:
-            return frappe.db.get_single_value("DESAR Settings", "grey_roll_warehouse") or ""
-        elif item_code == FINISHED_ROLL:
-            return frappe.db.get_single_value("DESAR Settings", "finished_roll_warehouse") or ""
+    def _get_source_wh_for_stage(cls, stage_lower: str) -> str:
+        """Get source warehouse for the input item of a stage."""
+        if "weav" in stage_lower:
+            return frappe.db.get_single_value("DESAR Settings", "warping_wip_warehouse") or "Warping WIP - ST"
+        elif "dye" in stage_lower:
+            return frappe.db.get_single_value("DESAR Settings", "grey_roll_warehouse") or "Grey Roll Store - ST"
+        elif "finish" in stage_lower:
+            return frappe.db.get_single_value("DESAR Settings", "finishing_wip_warehouse") or "Finishing WIP - ST"
+        elif "pack" in stage_lower:
+            return frappe.db.get_single_value("DESAR Settings", "finished_roll_warehouse") or "Finished Roll Store - ST"
         return ""
-
-    @classmethod
-    def _make_bom_item(cls, item_code, qty, uom, source_warehouse="") -> dict:
-        return {
-            "item_code":        item_code,
-            "qty":              qty,
-            "uom":              uom,
-            "source_warehouse": source_warehouse,
-        }
 
     @classmethod
     def _get_yarn_items(cls, dm) -> list:
@@ -359,6 +341,16 @@ class BOMService:
         })
 
     # ── Shared ────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def _make_bom_item(cls, item_code: str, qty: float, uom: str, warehouse: str) -> dict:
+        """Helper to construct a BOM item dictionary."""
+        return {
+            "item_code": item_code,
+            "qty": qty,
+            "uom": uom,
+            "source_warehouse": warehouse,
+        }
 
     @classmethod
     def _get_default_workstation(cls, stage_name: str) -> str:

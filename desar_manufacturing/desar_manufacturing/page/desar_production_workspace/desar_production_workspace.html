@@ -1,0 +1,29 @@
+<div class="desar-workspace">
+    <div class="desar-ws-header">
+        <div class="desar-ws-title">
+            <h3>Production Workspace</h3>
+            <span class="desar-ws-date"></span>
+        </div>
+        <div class="desar-ws-tabs">
+            <button class="desar-tab active" data-tab="production">Production</button>
+            <button class="desar-tab" data-tab="inspections">QC Inspections</button>
+        </div>
+        <button class="btn btn-xs btn-default desar-refresh">↻ Refresh</button>
+    </div>
+
+    <div class="desar-tab-content" id="tab-production">
+        <div class="desar-loading">Loading production orders...</div>
+        <div class="desar-orders-list"></div>
+        <div class="desar-empty" style="display:none">
+            <p>No active production orders</p>
+        </div>
+    </div>
+
+    <div class="desar-tab-content" id="tab-inspections" style="display:none">
+        <div class="desar-qi-loading">Loading pending inspections...</div>
+        <div class="desar-qi-list"></div>
+        <div class="desar-qi-empty" style="display:none">
+            <p>No pending inspections ✓</p>
+        </div>
+    </div>
+</div>
