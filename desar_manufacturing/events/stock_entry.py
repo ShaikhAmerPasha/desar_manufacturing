@@ -7,6 +7,36 @@ Supports both dynamic (Stage Configuration) and legacy (hardcoded Grey Roll) mod
 """
 import frappe
 from desar_manufacturing.constants import GREY_ROLL
+from desar_manufacturing.services import batch_service
+from desar_manufacturing.utils.validation_utils import round_up_if_needed
+
+
+def before_validate(doc, method=None):
+    """
+    Round each item row's qty/transfer_qty up to a whole number before
+    ERPNext's own validate_uom_is_integer (stock_entry.py:215-216) can
+    reject a fractional value for a whole-number UOM.
+
+    Same class of bug as the Work Order fix in events/work_order.py:
+    quantities generated from a BOM ratio off a beam-split roll count
+    (e.g. 81 pieces / 50 per roll = 1.62) can be fractional even when the
+    item's UOM demands a whole number. Stock Entries created from a Work
+    Order (roll_service/warping_service via stock_entry_service) copy the
+    Work Order's required_qty straight into qty, so this needs the same
+    guard independently — must run at before_validate (fires before core
+    validate(), where the check actually happens), not validate.
+    """
+    for row in doc.get("items") or []:
+        if row.uom and row.qty:
+            must_be_whole = frappe.get_cached_value("UOM", row.uom, "must_be_whole_number")
+            rounded = round_up_if_needed(row.qty, bool(must_be_whole))
+            if rounded != row.qty:
+                row.qty = rounded
+        if row.stock_uom and row.transfer_qty:
+            must_be_whole = frappe.get_cached_value("UOM", row.stock_uom, "must_be_whole_number")
+            rounded = round_up_if_needed(row.transfer_qty, bool(must_be_whole))
+            if rounded != row.transfer_qty:
+                row.transfer_qty = rounded
 
 
 def on_submit(doc, method):
@@ -53,6 +83,27 @@ def on_submit(doc, method):
             qty=row.qty,
             uom=row.uom or "Nos",
         )
+
+
+def on_cancel(doc, method=None):
+    """
+    Trigger: Stock Entry on_cancel (Manufacture purpose only)
+    Reverses roll_service's DESAR Roll Chain references to this SE/batch,
+    and deletes any Roll Ticket that was auto-created for the produced
+    batch and has no stage progress recorded on it yet.
+    """
+    if doc.purpose != "Manufacture":
+        return
+
+    from desar_manufacturing.services.roll_ticket_service import RollTicketService
+    from desar_manufacturing.services.roll_service import revert_stock_entry_reference
+
+    if any(row.is_finished_item for row in doc.items):
+        batch_no = batch_service.get_batch_from_stock_entry(doc)
+        if batch_no:
+            RollTicketService.revert_roll_ticket_creation(batch_no)
+
+    revert_stock_entry_reference(doc.name)
 
 
 def _get_roll_ticket_trigger_items(doc) -> set:

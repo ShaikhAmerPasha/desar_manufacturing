@@ -16,6 +16,7 @@ from frappe import _
 from frappe.utils import nowdate
 
 from desar_manufacturing.services import batch_service, qi_service, stock_entry_service
+from desar_manufacturing.utils.validation_utils import resolve_by_keyword
 
 
 # ── Grey Roll ─────────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ def start_grey_roll(production_order: str, roll_no: int) -> dict:
 	Job Cards are created at WO submit. Operator completes them,
 	then calls complete_grey_roll.
 	"""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if roll.grey_roll_status != "Not Started":
@@ -65,7 +66,7 @@ def complete_grey_roll(production_order: str, roll_no: int) -> dict:
 	"""
 	Step 2: Create Manufacture SE + QI after Job Cards are completed.
 	"""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if roll.grey_roll_status != "In Progress":
@@ -107,7 +108,7 @@ def complete_grey_roll(production_order: str, roll_no: int) -> dict:
 
 def start_finished_roll(production_order: str, roll_no: int) -> dict:
 	"""Step 1: Submit Finished Roll WO + Transfer SE."""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if roll.finished_roll_status != "Not Started":
@@ -139,7 +140,7 @@ def start_finished_roll(production_order: str, roll_no: int) -> dict:
 
 def complete_finished_roll(production_order: str, roll_no: int) -> dict:
 	"""Step 2: Manufacture SE + QI after Job Cards completed."""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if roll.finished_roll_status != "In Progress":
@@ -173,7 +174,7 @@ def complete_finished_roll(production_order: str, roll_no: int) -> dict:
 
 def start_packing(production_order: str, roll_no: int) -> dict:
 	"""Step 1: Submit Packing WO + Transfer SE + draft Manufacture SE."""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if roll.packing_status != "Not Started":
@@ -205,7 +206,7 @@ def start_packing(production_order: str, roll_no: int) -> dict:
 
 def complete_packing(production_order: str, roll_no: int) -> dict:
 	"""Step 2: Create draft Manufacture SE after Job Cards completed."""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if roll.packing_status != "In Progress":
@@ -232,7 +233,7 @@ def complete_packing(production_order: str, roll_no: int) -> dict:
 
 def finalize_packing(production_order: str, roll_no: int) -> dict:
 	"""Step 3: Create QI after Manufacture SE is submitted."""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if not roll.packing_manufacture_se:
@@ -254,7 +255,7 @@ def finalize_packing(production_order: str, roll_no: int) -> dict:
 
 def complete_roll(production_order: str, roll_no: int) -> dict:
 	"""Mark roll as fully completed after packing QI is submitted."""
-	po   = frappe.get_doc("DESAR Production Order", production_order)
+	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
 	roll = _get_roll(po, roll_no)
 
 	if not roll.packing_qi:
@@ -268,6 +269,126 @@ def complete_roll(production_order: str, roll_no: int) -> dict:
 	})
 	_refresh_po_status(po)
 	return {"status": "completed"}
+
+
+# ── Cancel reconciliation ───────────────────────────────────────────────────────
+
+
+def revert_qi_reference(qi_name: str) -> None:
+	"""
+	On Quality Inspection cancel: clear whichever DESAR Roll Chain field
+	referenced this QI and roll that stage back to "In Progress" so it can
+	be redone. Refuses (frappe.throw) if the next stage already started —
+	reversing then would leave that stage pointing at data that no longer
+	has a valid inspection behind it.
+	"""
+	rows = frappe.get_all(
+		"DESAR Roll Chain",
+		or_filters={
+			"grey_roll_qi":     qi_name,
+			"finished_roll_qi": qi_name,
+			"packing_qi":       qi_name,
+		},
+		fields=[
+			"name", "parent", "grey_roll_qi", "finished_roll_qi", "packing_qi",
+			"finished_roll_status", "packing_status", "roll_status",
+		],
+	)
+	for row in rows:
+		if row.grey_roll_qi == qi_name:
+			_guard_next_stage_not_started(row.finished_roll_status, "Grey Roll")
+			_update_roll(row, {"grey_roll_qi": "", "grey_roll_status": "In Progress"})
+		elif row.finished_roll_qi == qi_name:
+			_guard_next_stage_not_started(row.packing_status, "Finished Roll")
+			_update_roll(row, {"finished_roll_qi": "", "finished_roll_status": "In Progress"})
+		elif row.packing_qi == qi_name:
+			updates = {"packing_qi": "", "packing_status": "In Progress"}
+			if row.roll_status == "Completed":
+				updates["roll_status"] = "In Progress"
+			_update_roll(row, updates)
+		_refresh_po_status_by_name(row.parent)
+
+
+def revert_stock_entry_reference(se_name: str) -> None:
+	"""
+	On Manufacture Stock Entry cancel: clear any DESAR Roll Chain field that
+	pointed at this SE (directly for Packing, or via the batch it produced
+	for Grey/Finished Roll) so the stage can be redone instead of silently
+	referencing cancelled stock.
+	"""
+	batch_no = batch_service.get_batch_from_stock_entry(frappe.get_doc("Stock Entry", se_name))
+	or_filters = {"packing_manufacture_se": se_name}
+	if batch_no:
+		or_filters["grey_roll_batch"] = batch_no
+		or_filters["finished_roll_batch"] = batch_no
+
+	rows = frappe.get_all(
+		"DESAR Roll Chain",
+		or_filters=or_filters,
+		fields=[
+			"name", "parent", "grey_roll_batch", "finished_roll_batch",
+			"packing_manufacture_se", "finished_roll_status", "packing_status",
+		],
+	)
+	for row in rows:
+		if row.packing_manufacture_se == se_name:
+			_update_roll(row, {
+				"packing_manufacture_se": "", "packing_qi": "", "packing_status": "In Progress",
+			})
+		elif batch_no and row.grey_roll_batch == batch_no:
+			_guard_next_stage_not_started(row.finished_roll_status, "Grey Roll")
+			_update_roll(row, {
+				"grey_roll_batch": "", "grey_roll_qi": "", "grey_roll_status": "In Progress",
+			})
+		elif batch_no and row.finished_roll_batch == batch_no:
+			_guard_next_stage_not_started(row.packing_status, "Finished Roll")
+			_update_roll(row, {
+				"finished_roll_batch": "", "finished_roll_qi": "", "finished_roll_status": "In Progress",
+			})
+		_refresh_po_status_by_name(row.parent)
+
+
+def revert_work_order_reference(wo_name: str) -> None:
+	"""
+	On Work Order cancel: reset whichever DESAR Roll Chain stage this WO
+	belonged to back to "Not Started" and clear the WO link, so the
+	operator must link a fresh Work Order before restarting that stage
+	instead of the flow silently trying to reuse a cancelled one.
+	"""
+	rows = frappe.get_all(
+		"DESAR Roll Chain",
+		or_filters={
+			"grey_roll_wo":     wo_name,
+			"finished_roll_wo": wo_name,
+			"packing_wo":       wo_name,
+		},
+		fields=[
+			"name", "parent", "grey_roll_wo", "finished_roll_wo", "packing_wo",
+			"finished_roll_status", "packing_status",
+		],
+	)
+	for row in rows:
+		if row.grey_roll_wo == wo_name:
+			_guard_next_stage_not_started(row.finished_roll_status, "Grey Roll")
+			_update_roll(row, {"grey_roll_wo": "", "grey_roll_status": "Not Started"})
+		elif row.finished_roll_wo == wo_name:
+			_guard_next_stage_not_started(row.packing_status, "Finished Roll")
+			_update_roll(row, {"finished_roll_wo": "", "finished_roll_status": "Not Started"})
+		elif row.packing_wo == wo_name:
+			_update_roll(row, {"packing_wo": "", "packing_status": "Not Started"})
+		_refresh_po_status_by_name(row.parent)
+
+
+def _guard_next_stage_not_started(next_stage_status: str, stage_label: str) -> None:
+	if next_stage_status and next_stage_status != "Not Started":
+		frappe.throw(
+			_("Cannot cancel {0} — its next stage has already started. Reverse the next stage first.").format(stage_label)
+		)
+
+
+def _refresh_po_status_by_name(po_name: str) -> None:
+	po = frappe.get_doc("DESAR Production Order", po_name)
+	_refresh_po_status(po)
 
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
@@ -348,7 +469,6 @@ def _update_roll(roll, updates: dict) -> None:
 		frappe.db.set_value(
 			"DESAR Roll Chain", roll.name, field, value, update_modified=False
 		)
-	frappe.db.commit()
 
 
 def _refresh_po_status(po) -> None:
@@ -385,67 +505,73 @@ def _configure_wo(wo, po, stage_keyword: str, is_final: bool = False) -> None:
 	settings = frappe.get_cached_doc("DESAR Settings")
 
 	# wip_warehouse: where Transfer SE deposits material (and Manufacture SE consumes from)
-	wip_map = {
+	wip_wh = resolve_by_keyword(stage_keyword, {
 		"grey":   settings.get("loom_floor_warehouse"),
 		"weav":   settings.get("loom_floor_warehouse"),
 		"finish": settings.get("finishing_wip_warehouse"),
 		"dye":    settings.get("finishing_wip_warehouse"),
 		"pack":   settings.get("cutting_packing_warehouse"),
 		"cut":    settings.get("cutting_packing_warehouse"),
-	}
-	for kw, wh in wip_map.items():
-		if kw in stage_keyword and wh:
-			wo.wip_warehouse = wh
-			break
+	})
+	if wip_wh:
+		wo.wip_warehouse = wip_wh
 
 	# fg_warehouse: where Manufacture SE outputs finished goods
 	if is_final:
 		if settings.get("fg_grade_a_warehouse"):
 			wo.fg_warehouse = settings.fg_grade_a_warehouse
 	else:
-		fg_map = {
+		fg_wh = resolve_by_keyword(stage_keyword, {
 			"grey":   settings.get("loom_floor_warehouse"),
 			"weav":   settings.get("loom_floor_warehouse"),
 			"finish": settings.get("finished_roll_warehouse"),
 			"dye":    settings.get("finished_roll_warehouse"),
 			"pack":   settings.get("cutting_packing_warehouse"),
 			"cut":    settings.get("cutting_packing_warehouse"),
-		}
-		for kw, wh in fg_map.items():
-			if kw in stage_keyword and wh:
-				wo.fg_warehouse = wh
-				break
+		})
+		if fg_wh:
+			wo.fg_warehouse = fg_wh
 
 	# Override source_warehouse on required_items for the primary input item
 	# so that Transfer SE sources from the previous stage's output warehouse.
 	# Without this override, the BOM default source_warehouse is used, which
 	# may differ from where the batch was actually manufactured to.
-	source_override_map = {
+	src_wh = resolve_by_keyword(stage_keyword, {
 		"grey":   settings.get("warping_wip_warehouse") or settings.get("loom_floor_warehouse"),
 		"weav":   settings.get("warping_wip_warehouse") or settings.get("loom_floor_warehouse"),
 		"finish": settings.get("loom_floor_warehouse"),
 		"dye":    settings.get("loom_floor_warehouse"),
 		"pack":   settings.get("finished_roll_warehouse"),
 		"cut":    settings.get("finished_roll_warehouse"),
-	}
-	# Map of stage keyword → the primary input item code
-	input_item_map = {
+	})
+	input_item = resolve_by_keyword(stage_keyword, {
 		"grey":   "Beam Roll",
 		"weav":   "Beam Roll",
 		"finish": "Grey Roll",
 		"dye":    "Grey Roll",
 		"pack":   "Finished Roll",
 		"cut":    "Finished Roll",
-	}
-	for kw in source_override_map:
-		if kw in stage_keyword:
-			src_wh = source_override_map[kw]
-			input_item = input_item_map.get(kw)
-			if src_wh and input_item:
-				for ri in wo.get("required_items") or []:
-					if ri.item_code == input_item:
-						ri.source_warehouse = src_wh
-			break
+	})
+	if input_item:
+		for ri in wo.get("required_items") or []:
+			if ri.item_code != input_item:
+				continue
+			if src_wh:
+				ri.source_warehouse = src_wh
+			ri.required_qty = 1
+		# ERPNext's WorkOrder.validate() recomputes required_items via
+		# set_required_items() AFTER this function returns, which would
+		# overwrite the qty=1 above with a BOM ratio again. Stash which
+		# item needs forcing so events/work_order.py's validate hook
+		# (which runs after that recompute — see its own comment) can
+		# re-apply it. A stage always consumes exactly ONE upstream roll
+		# regardless of how many pieces that roll holds; the BOM's
+		# proportional ratio (output_qty / nominal_pieces_per_roll) doesn't
+		# fit that "1 roll in, N pieces out" relationship and produces a
+		# wrong (and sometimes fractional) required_qty whenever a
+		# beam-split roll's actual piece count differs from the BOM's
+		# nominal pieces-per-roll.
+		wo.flags.desar_force_qty_1_item = input_item
 
 	if settings.get("scrap_warehouse"):
 		wo.scrap_warehouse = settings.scrap_warehouse
@@ -472,15 +598,8 @@ def _validate_job_cards(work_order: str, stage_name: str) -> None:
 
 
 def _create_roll_qi(po, roll, stage_name: str, batch_no: str, work_order: str) -> str:
-	try:
-		qi = qi_service.make_roll_qi(po, roll, stage_name, batch_no, work_order)
-		return qi.name
-	except Exception:
-		frappe.log_error(
-			title=f"DESAR: QI creation failed — Roll {roll.roll_no} {stage_name}",
-			message=frappe.get_traceback(),
-		)
-		return ""
+	qi = qi_service.make_roll_qi(po, roll, stage_name, batch_no, work_order)
+	return qi.name
 
 
 def _is_submitted(doctype: str, name: str) -> bool:

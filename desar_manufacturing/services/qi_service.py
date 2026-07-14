@@ -101,7 +101,10 @@ def make_roll_qi(po, roll, stage_name: str, batch_no: str, work_order: str) -> o
 					"numeric":       r.get("numeric"),
 				})
 		except Exception:
-			pass
+			frappe.log_error(
+				title=f"DESAR: QI readings template load failed — {template}",
+				message=frappe.get_traceback(),
+			)
 
 	qi.insert(ignore_permissions=True)
 	return qi

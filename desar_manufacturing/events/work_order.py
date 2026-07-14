@@ -11,17 +11,106 @@ validate / before_submit:
 import frappe
 from frappe import _
 
+from desar_manufacturing.utils.validation_utils import round_up_if_needed
+
+
+def before_insert(doc, method=None):
+    """Insert-time alias for before_validate (see there for why)."""
+    before_validate(doc, method)
+
+
+def before_validate(doc, method=None):
+    """
+    Round qty up to a whole number before ERPNext's own validate_qty()/
+    validate_uom_is_integer() can reject a fractional qty for a
+    whole-number UOM.
+
+    Must run at before_validate, not validate — Document.run_before_save_methods()
+    calls before_validate before validate() for BOTH "save" and "submit"
+    actions, and validate() bundles the core controller's own checks
+    together with any hooks.py-registered validate handler, so a
+    hooks-registered validate never gets a turn before the core one throws.
+
+    before_validate (unlike before_insert) also fires on every later
+    .save()/.submit() of an EXISTING document — needed because
+    warping_service._resize_packing_wo resizes an already-inserted draft
+    Work Order via .save(), not .insert(), and set_required_items() can
+    reintroduce a fractional required_qty each time it recomputes.
+    """
+    _round_wo_qty(doc)
+    _round_required_items_qty(doc)
+
+
+def _round_wo_qty(doc) -> None:
+    if not doc.stock_uom or not doc.qty:
+        return
+    must_be_whole = frappe.get_cached_value("UOM", doc.stock_uom, "must_be_whole_number")
+    rounded = round_up_if_needed(doc.qty, bool(must_be_whole))
+    if rounded != doc.qty:
+        doc.qty = rounded
+
+
+def _round_required_items_qty(doc) -> None:
+    """
+    Same fractional-qty problem, one level down: ERPNext's own
+    validate_uom_is_integer (work_order.py:169) checks required_qty on
+    every required_items row the same way it checks the WO's own qty —
+    BOM-ratio math (e.g. set_required_items() after cloning a WO to a
+    smaller qty, as warping_service's beam-split does) can leave a
+    fractional required_qty even when the row's stock_uom demands a
+    whole number.
+    """
+    for row in doc.get("required_items") or []:
+        if not row.stock_uom or not row.required_qty:
+            continue
+        must_be_whole = frappe.get_cached_value("UOM", row.stock_uom, "must_be_whole_number")
+        rounded = round_up_if_needed(row.required_qty, bool(must_be_whole))
+        if rounded != row.required_qty:
+            row.required_qty = rounded
+
 
 def validate(doc, method=None):
     """Auto-fill all warehouse, design, and skip_transfer fields before save."""
     _autofill_design_context(doc)
     _autofill_warehouses(doc)
     _apply_skip_transfer(doc)
+    # ERPNext's own WorkOrder.validate() checks required_qty for whole-number
+    # UOMs BEFORE recomputing it via set_required_items() — see work_order.py
+    # lines 169-174. That recompute can silently reintroduce a fraction
+    # AFTER the check already passed, so before_validate's rounding alone
+    # isn't enough; this hooks.py "validate" handler runs after the core
+    # class's own validate() (proven by autofill above already depending on
+    # that ordering), so round again here to catch the post-recompute value
+    # before it's actually persisted.
+    _round_required_items_qty(doc)
+    _reapply_forced_input_qty(doc)
+
+
+def _reapply_forced_input_qty(doc) -> None:
+    """
+    roll_service._configure_wo forces the primary roll-input item's
+    required_qty to 1 (a stage always consumes exactly one upstream roll,
+    never a BOM ratio) and stashes which item_code via doc.flags, since
+    set_required_items() would otherwise overwrite that qty right after.
+    Re-apply it here, after that recompute has already happened.
+    """
+    item_code = doc.flags.get("desar_force_qty_1_item")
+    if not item_code:
+        return
+    for row in doc.get("required_items") or []:
+        if row.item_code == item_code:
+            row.required_qty = 1
 
 
 def before_submit(doc, method=None):
     """Ensure fields are updated/saved during submit."""
     validate(doc)
+
+
+def on_cancel(doc, method=None):
+    """Reset the DESAR Roll Chain stage this WO belonged to, if any."""
+    from desar_manufacturing.services.roll_service import revert_work_order_reference
+    revert_work_order_reference(doc.name)
 
 
 def _autofill_design_context(doc):

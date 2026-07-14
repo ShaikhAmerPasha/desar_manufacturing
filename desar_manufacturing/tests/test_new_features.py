@@ -71,12 +71,26 @@ class TestSkipTransferLogic(unittest.TestCase):
 
 class TestGradeAdjustmentMath(unittest.TestCase):
     """
-    Pure math tests for grade adjustment reconciliation.
-    Tests _validate_adjustment_quantities logic without frappe DB.
+    Calls the real _validate_adjustment_quantities (events/quality_inspection.py)
+    directly. No DB queries, but frappe.throw needs a bound site context —
+    skips itself under plain pytest, runs for real under bench run-tests.
     """
 
+    def _check_reconciles(self, finishing, final, adjustments) -> bool:
+        """True if the real validator accepts the adjustments, False if it throws."""
+        import frappe
+        if not frappe.db:
+            self.skipTest("frappe site context not initialized — run via bench run-tests")
+        from desar_manufacturing.events.quality_inspection import _validate_adjustment_quantities
+
+        try:
+            _validate_adjustment_quantities(finishing, final, adjustments)
+            return True
+        except frappe.ValidationError:
+            return False
+
     def _compute_expected(self, finishing: dict, adjustments: list) -> dict:
-        """Apply adjustments to finishing grades to get expected final."""
+        """Only used by test_total_preserved_after_adjustment below — same math the real validator applies."""
         expected = dict(finishing)
         for adj in adjustments:
             f = adj["from_grade"]
@@ -85,15 +99,6 @@ class TestGradeAdjustmentMath(unittest.TestCase):
             expected[f] = expected.get(f, 0) - q
             expected[t] = expected.get(t, 0) + q
         return expected
-
-    def _check_reconciles(self, finishing, final, adjustments) -> bool:
-        """Returns True if adjustments reconcile finishing to final."""
-        expected = self._compute_expected(finishing, adjustments)
-        for grade, exp_qty in expected.items():
-            actual = final.get(grade, 0)
-            if abs(actual - exp_qty) > 0.01:
-                return False
-        return True
 
     def test_no_changes_no_adjustments(self):
         """Same grades — no adjustments needed."""

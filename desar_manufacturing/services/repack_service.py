@@ -8,15 +8,20 @@ DYNAMIC MODE (when DESAR Settings → Grade Configuration is filled):
   Client can add Grade D, E, F in settings — Repack adapts automatically.
 
 LEGACY MODE (when Grade Configuration is empty):
-  Falls back to hardcoded A/B/C behavior — backward compatible.
-  Grade A → Full cost, Grade B → 60%, Scrap → 5%.
+  Falls back to hardcoded A/B behavior — backward compatible.
+  Grade A → Full cost, Grade B → 60%.
+
+Scrap (grade rows flagged is_scrap, or legacy Grade C) is disposed, never sold —
+it is consumed from the source warehouse like the rest of the output but gets
+no valued output row, so it carries no stock value. Its quantity is still
+visible via DESAR Roll Ticket Stage Grade / the grade yield reports.
 """
 import frappe
 from frappe import _
 from frappe.utils import nowdate, flt
 from typing import Optional, Tuple, List
 
-from desar_manufacturing.constants import QIFields, SHEMAGH_SCRAP
+from desar_manufacturing.constants import QIFields
 from desar_manufacturing.config.settings_manager import SettingsManager
 from desar_manufacturing.repositories.stock_entry_repository import StockEntryRepository
 from desar_manufacturing.repositories.work_order_repository import WorkOrderRepository
@@ -27,13 +32,12 @@ class RepackService:
     """
     Creates the grade-split Repack Stock Entry.
 
-    Supports both dynamic (Grade Configuration) and legacy (hardcoded A/B/C) modes.
+    Supports both dynamic (Grade Configuration) and legacy (hardcoded A/B) modes.
     Dynamic mode is used when DESAR Settings has grade_configuration rows filled.
     """
 
-    # Legacy valuation ratios — used only when Grade Configuration is empty
+    # Legacy valuation ratio — used only when Grade Configuration is empty
     GRADE_B_RATIO = 0.60
-    SCRAP_RATIO   = 0.05
 
     @classmethod
     def create_from_final_qi(cls, qi_doc) -> Optional[str]:
@@ -87,7 +91,6 @@ class RepackService:
             )
             frappe.msgprint(
                 _("Repack could not be auto-created. Please create it manually."),
-                alert=True,
                 indicator="orange",
             )
             return None
@@ -136,17 +139,11 @@ class RepackService:
                 continue
 
             grade = next((g for g in grade_config if g.grade_code == reading["grade_code"]), None)
-            if not grade:
+            if not grade or grade.is_scrap:
+                # Scrap is disposed, not sold — consumed from source above, no valued output row.
                 continue
 
-            # Determine item code
-            if grade.is_scrap and grade.scrap_item:
-                item_code = grade.scrap_item
-            elif grade.item_suffix:
-                item_code = cls._derive_item_with_suffix(base_item, grade.item_suffix)
-            else:
-                continue
-
+            item_code = cls._derive_item_with_suffix(base_item, grade.item_suffix) if grade.item_suffix else None
             if not item_code or not frappe.db.exists("Item", item_code):
                 frappe.msgprint(
                     _("Item for Grade {0} not found — skipping in Repack.").format(grade.grade_code),
@@ -219,7 +216,7 @@ class RepackService:
     @classmethod
     def _build_items_legacy(cls, qi_doc, wh_src: str):
         """
-        Legacy grade build — hardcoded A/B/C.
+        Legacy grade build — hardcoded A/B, with Grade C consumed as disposed scrap.
         Used when Grade Configuration is not set up in DESAR Settings.
         Kept for backward compatibility.
         """
@@ -233,7 +230,6 @@ class RepackService:
 
         wh_a  = SettingsManager.get_warehouse("fg_grade_a_warehouse")
         wh_b  = SettingsManager.get_warehouse("fg_grade_b_warehouse")
-        wh_sc = SettingsManager.get_warehouse("scrap_warehouse")
 
         item_a, item_b = cls._resolve_grade_items_legacy(qi_doc)
         if not item_a:
@@ -265,12 +261,8 @@ class RepackService:
                 "is_finished_item": 1, "set_basic_rate_manually": 1,
                 "basic_rate": round(val_rate * cls.GRADE_B_RATIO, 2),
             })
-        if grade_c:
-            items.append({
-                "item_code": SHEMAGH_SCRAP, "t_warehouse": wh_sc, "qty": grade_c, "uom": "Pcs",
-                "is_finished_item": 1, "set_basic_rate_manually": 1,
-                "basic_rate": round(val_rate * cls.SCRAP_RATIO, 2),
-            })
+        # Grade C is disposed scrap — already counted in `total` consumed from source,
+        # never a valued output row.
 
         return items, total
 
@@ -283,16 +275,15 @@ class RepackService:
     @classmethod
     def _build_items(
         cls,
-        item_a, item_b, wh_src, wh_a, wh_b, wh_sc,
-        total, grade_a, grade_b, grade_c, val_rate
+        item_a, item_b, wh_src, wh_a, wh_b,
+        total, grade_a, grade_b, val_rate
     ) -> list:
         """
         Alias for backward compatibility with existing tests.
         Called by test_roll_ticket_service.py TestRepackServiceUnit tests.
-        Builds legacy A/B/C items directly without reading from DB.
+        Builds legacy A/B items directly without reading from DB.
+        `total` already includes any disposed scrap qty consumed from source.
         """
-        from desar_manufacturing.constants import SHEMAGH_SCRAP
-
         items = [{"item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": "Pcs"}]
 
         if grade_a and item_a:
@@ -305,11 +296,5 @@ class RepackService:
                 "item_code": item_b, "t_warehouse": wh_b, "qty": grade_b, "uom": "Pcs",
                 "is_finished_item": 1, "set_basic_rate_manually": 1,
                 "basic_rate": round(val_rate * cls.GRADE_B_RATIO, 2),
-            })
-        if grade_c:
-            items.append({
-                "item_code": SHEMAGH_SCRAP, "t_warehouse": wh_sc, "qty": grade_c, "uom": "Pcs",
-                "is_finished_item": 1, "set_basic_rate_manually": 1,
-                "basic_rate": round(val_rate * cls.SCRAP_RATIO, 2),
             })
         return items

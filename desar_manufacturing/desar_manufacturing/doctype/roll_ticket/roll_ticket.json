@@ -23,23 +23,12 @@
   "parent_beam_batch",
   "qty_in_roll",
   "uom",
-  "section_grey",
-  "grey_qty_a",
-  "grey_qty_b",
-  "grey_qty_c",
-  "grey_total",
-  "section_finished",
-  "finished_qty_a",
-  "finished_qty_b",
-  "finished_qty_c",
-  "finished_total",
-  "section_cutted",
-  "cutted_qty_a",
-  "cutted_qty_b",
-  "cutted_qty_c",
-  "cutted_total",
   "section_remarks",
-  "remarks"
+  "remarks",
+  "section_stage_grades",
+  "stage_grades",
+  "section_grade_adjustment",
+  "grade_adjustment_html"
  ],
  "fields": [
   {

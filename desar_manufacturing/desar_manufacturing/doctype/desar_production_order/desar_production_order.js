@@ -135,6 +135,7 @@ frappe.ui.form.on("DESAR Production Order", {
 					fields: ["name", "work_order", "operation", "status"],
 					limit: 1000
 				}).then(res => {
+					_warn_if_truncated(res, "Job Cards");
 					(res || []).forEach(jc => {
 						if (!job_cards_by_wo[jc.work_order]) job_cards_by_wo[jc.work_order] = [];
 						job_cards_by_wo[jc.work_order].push(jc);
@@ -148,6 +149,7 @@ frappe.ui.form.on("DESAR Production Order", {
 					fields: ["name", "work_order", "purpose", "stock_entry_type", "docstatus"],
 					limit: 1000
 				}).then(res => {
+					_warn_if_truncated(res, "Stock Entries");
 					let stock_entries_by_wo = {};
 					(res || []).forEach(se => {
 						if (!stock_entries_by_wo[se.work_order]) stock_entries_by_wo[se.work_order] = [];
@@ -168,6 +170,7 @@ frappe.ui.form.on("DESAR Production Order", {
 					fields: ["name", "status", "docstatus"],
 					limit: 1000
 				}).then(res => {
+					_warn_if_truncated(res, "Quality Inspections");
 					(res || []).forEach(qi => {
 						qi_by_name[qi.name] = qi;
 					});
@@ -195,8 +198,6 @@ frappe.ui.form.on("DESAR Production Order", {
 		const wo = frm.doc.warping_wo;
 		const batch = frm.doc.warping_batch;
 		const status = frm.doc.warping_status;
-		const transfer_se = frm.doc.warping_transfer_se;
-		const manufacture_se = frm.doc.warping_manufacture_se;
 
 		const job_cards = (frm.dashboard_job_cards && frm.dashboard_job_cards[wo]) || [];
 		const stock_entries = (frm.dashboard_stock_entries && frm.dashboard_stock_entries[wo]) || [];
@@ -205,53 +206,20 @@ frappe.ui.form.on("DESAR Production Order", {
 		const display_style = is_completed ? "none" : "block";
 		const toggle_icon = is_completed ? "▶" : "▼";
 
-		let job_cards_html = "";
-		if (job_cards.length) {
-			job_cards_html = `<div style="margin-top: 8px;">
-				<strong>Job Cards:</strong><br>
-				<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
-					${job_cards.map(jc => {
-						const badge = _badge(`${jc.operation}: ${jc.status}`, jc.status);
-						return `<a href="${frappe.utils.get_form_link("Job Card", jc.name)}" target="_blank">${badge}</a>`;
-					}).join("")}
-				</div>
-			</div>`;
-		} else if (wo) {
-			job_cards_html = `<div style="margin-top: 8px; color:#6c757d;">No Job Cards found for this Work Order.</div>`;
-		}
+		const job_cards_html = _job_cards_html(job_cards, wo);
+		const se_list = _warping_se_list(stock_entries, frm.doc.warping_transfer_se, frm.doc.warping_manufacture_se);
+		const stock_entries_html = _stock_entries_html(se_list, wo);
 
-		let stock_entries_html = "";
-		const se_links = [];
-		if (transfer_se) {
-			se_links.push({ name: transfer_se, type: "Transfer Stock Entry", label: "Transfer SE", docstatus: 1 });
-		}
-		if (manufacture_se) {
-			se_links.push({ name: manufacture_se, type: "Manufacture Stock Entry", label: "Manufacture SE", docstatus: 1 });
-		}
-		stock_entries.forEach(se => {
-			if (se.name !== transfer_se && se.name !== manufacture_se) {
-				const is_mfg = se.purpose === "Manufacture" || se.stock_entry_type === "Manufacture";
-				se_links.push({
-					name: se.name,
-					type: is_mfg ? "Manufacture Stock Entry" : "Transfer Stock Entry",
-					label: is_mfg ? "Manufacture SE" : "Transfer SE",
-					docstatus: se.docstatus
-				});
-			}
-		});
-
-		if (se_links.length) {
-			stock_entries_html = `<div style="margin-top: 8px;">
-				<strong>Stock Entries:</strong><br>
-				<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
-					${se_links.map(se => {
-						const docstatus_label = se.docstatus === 1 ? "Submitted" : (se.docstatus === 0 ? "Draft" : "Cancelled");
-						const badge = _badge(`${se.label}: ${se.name} (${docstatus_label})`, docstatus_label);
-						return `<a href="${frappe.utils.get_form_link("Stock Entry", se.name)}" target="_blank">${badge}</a>`;
-					}).join("")}
+		const details_html = `
+			<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:16px;">
+				<div>
+					<strong>Work Order:</strong><br>
+					${wo ? `<a href="${frappe.utils.get_form_link("Work Order", wo)}" target="_blank" class="desar-link" style="font-size:14px; font-weight:600;">${wo}</a>` : `<span style="color:#6c757d;">Not Created</span>`}
+					${job_cards_html}
 				</div>
-			</div>`;
-		}
+				<div>${stock_entries_html}</div>
+			</div>
+		`;
 
 		const $card = $(`
 			<div class="desar-dashboard-card">
@@ -264,16 +232,7 @@ frappe.ui.form.on("DESAR Production Order", {
 					${batch ? `<span style="font-weight:400; font-size:12px; color:#6c757d;">Beam Batch: <a href="${frappe.utils.get_form_link("Batch", batch)}" target="_blank" class="desar-link">${batch}</a></span>` : ""}
 				</div>
 				<div class="desar-dashboard-body" style="display:${display_style}; border-top:1px solid #f1f5f9;">
-					<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:16px;">
-						<div>
-							<strong>Work Order:</strong><br>
-							${wo ? `<a href="${frappe.utils.get_form_link("Work Order", wo)}" target="_blank" class="desar-link" style="font-size:14px; font-weight:600;">${wo}</a>` : `<span style="color:#6c757d;">Not Created</span>`}
-							${job_cards_html}
-						</div>
-						<div>
-							${stock_entries_html}
-						</div>
-					</div>
+					${_details_toggle(__("Details"), details_html)}
 				</div>
 			</div>
 		`);
@@ -291,6 +250,8 @@ frappe.ui.form.on("DESAR Production Order", {
 			}
 		});
 
+		_bind_submit_buttons($card, frm);
+		_bind_details_toggle($card);
 		$wrapper.append($card);
 	},
 
@@ -310,34 +271,8 @@ frappe.ui.form.on("DESAR Production Order", {
 		const $wrap = $('<div class="desar-roll-chains"></div>');
 		frm.doc.roll_chains.forEach(roll => $wrap.append(_render_roll_row(frm, roll)));
 
-		// Event delegation for submitting SE
-		$wrap.on("click", ".btn-submit-se", function(e) {
-			e.preventDefault();
-			e.stopPropagation();
-			const se_name = $(this).data("se");
-			frappe.confirm(
-				__("Are you sure you want to submit Stock Entry {0}?", [se_name]),
-				function() {
-					frappe.call({
-						method: "frappe.client.submit",
-						args: {
-							doc: {
-								doctype: "Stock Entry",
-								name: se_name
-							}
-						},
-						freeze: true,
-						freeze_message: __("Submitting Stock Entry..."),
-						callback(r) {
-							if (!r.exc) {
-								frappe.show_alert({message: __("Stock Entry submitted successfully"), indicator: "green"});
-								frm.reload_doc();
-							}
-						}
-					});
-				}
-			);
-		});
+		_bind_submit_buttons($wrap, frm);
+		_bind_details_toggle($wrap);
 
 		// Event delegation for stage accordion toggles
 		$wrap.on("click", ".desar-stage-header", function(e) {
@@ -356,6 +291,16 @@ frappe.ui.form.on("DESAR Production Order", {
 		$field.$wrapper.append($wrap);
 	},
 });
+
+
+function _warn_if_truncated(res, label) {
+	if ((res || []).length === 1000) {
+		frappe.show_alert({
+			message: __("{0} dashboard list hit the 1000-row cap — some may not be shown.", [label]),
+			indicator: "orange",
+		}, 8);
+	}
+}
 
 
 function _show_placeholders(frm) {
@@ -401,6 +346,7 @@ function _render_roll_row(frm, roll) {
 				</div>
 				<div class="roll-actions"></div>
 			</div>
+			<div style="margin-bottom:10px;">${_roll_summary_html(roll)}</div>
 			<div style="display:flex;flex-direction:column;gap:8px;">
 				${_render_stage_section(frm, "Grey Roll",     roll.grey_roll_status,     roll.grey_roll_wo,     roll.grey_roll_batch,    roll.grey_roll_qi,     "grey")}
 				${_render_stage_section(frm, "Finished Roll", roll.finished_roll_status, roll.finished_roll_wo, roll.finished_roll_batch, roll.finished_roll_qi, "finished")}
@@ -422,90 +368,22 @@ function _render_stage_section(frm, stage_label, status, wo, batch_no, qi_no, st
 	const job_cards = (frm.dashboard_job_cards && frm.dashboard_job_cards[wo]) || [];
 	const stock_entries = (frm.dashboard_stock_entries && frm.dashboard_stock_entries[wo]) || [];
 
-	let qi_html = "";
-	if (qi_no) {
-		const qi_doc = (frm.dashboard_qis && frm.dashboard_qis[qi_no]) || {};
-		let qi_status = qi_doc.status || "Draft";
-		if (qi_doc.docstatus === 1) {
-			qi_status = qi_doc.status === "Accepted" ? "Accepted" : "Rejected";
-		} else if (qi_doc.docstatus === 0) {
-			qi_status = "Draft";
-		}
-		const badge = _badge(`QI: ${qi_no} (${qi_status})`, qi_status);
-		qi_html = `<a href="${frappe.utils.get_form_link("Quality Inspection", qi_no)}" target="_blank" style="margin-left:8px;">${badge}</a>`;
-	}
-
-	let job_cards_html = "";
-	if (job_cards.length) {
-		job_cards_html = `
-			<div style="margin-top: 6px;">
-				<strong>Job Cards:</strong>
-				<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
-					${job_cards.map(jc => {
-						const badge = _badge(`${jc.operation}: ${jc.status}`, jc.status);
-						return `<a href="${frappe.utils.get_form_link("Job Card", jc.name)}" target="_blank">${badge}</a>`;
-					}).join("")}
-				</div>
-			</div>
-		`;
-	} else if (wo) {
-		job_cards_html = `<div style="margin-top: 6px; color:#8c95a5; font-size:11px;">No Job Cards</div>`;
-	}
-
-	let se_html = "";
-	const se_list = [];
-
-	stock_entries.forEach(se => {
-		const is_mfg = se.purpose === "Manufacture" || se.stock_entry_type === "Manufacture" || (stage_key === "packing" && se.name === frm.doc.packing_manufacture_se);
-		se_list.push({
-			name: se.name,
-			is_mfg: is_mfg,
-			label: is_mfg ? "Manufacture SE" : "Transfer SE",
-			docstatus: se.docstatus
-		});
-	});
-
-	if (stage_key === "packing" && frm.doc.packing_manufacture_se) {
-		if (!se_list.some(s => s.name === frm.doc.packing_manufacture_se)) {
-			se_list.push({
-				name: frm.doc.packing_manufacture_se,
-				is_mfg: true,
-				label: "Manufacture SE",
-				docstatus: 0
-			});
-		}
-	}
-
-	if (se_list.length) {
-		se_html = `
-			<div style="margin-top: 6px;">
-				<strong>Stock Entries:</strong>
-				<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
-					${se_list.map(se => {
-						const docstatus_label = se.docstatus === 1 ? "Submitted" : (se.docstatus === 0 ? "Draft" : "Cancelled");
-						let badge_label = `${se.label}: ${se.name} (${docstatus_label})`;
-						let badge = _badge(badge_label, docstatus_label);
-						
-						let submit_btn = "";
-						if (stage_key === "packing" && se.is_mfg && se.docstatus === 0) {
-							submit_btn = `<button class="btn btn-xs btn-primary btn-submit-se" data-se="${se.name}" style="padding: 1px 5px; font-size: 10px; margin-left: 4px; line-height: 1.2;">Submit SE</button>`;
-						}
-						
-						return `
-							<div style="display:inline-flex; align-items:center; margin-bottom: 2px;">
-								<a href="${frappe.utils.get_form_link("Stock Entry", se.name)}" target="_blank">${badge}</a>
-								${submit_btn}
-							</div>
-						`;
-					}).join("")}
-				</div>
-			</div>
-		`;
-	} else if (wo) {
-		se_html = `<div style="margin-top: 6px; color:#8c95a5; font-size:11px;">No Stock Entries</div>`;
-	}
-
+	const qi_html = _qi_badge_html(frm, qi_no);
+	const job_cards_html = _job_cards_html(job_cards, wo);
+	const se_list = _roll_stage_se_list(stock_entries, stage_key, frm.doc.packing_manufacture_se);
+	const se_html = _stock_entries_html(se_list, wo);
 	const header_bg = is_completed ? "#f8fafc" : `${color}06`;
+
+	const details_html = `
+		<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+			<div>
+				<strong>Work Order:</strong><br>
+				${wo ? `<a href="${frappe.utils.get_form_link("Work Order", wo)}" target="_blank" class="desar-link" style="font-weight:600;">${wo}</a>` : `<span style="color:#6c757d;">Not Created</span>`}
+				${job_cards_html}
+			</div>
+			<div>${se_html}</div>
+		</div>
+	`;
 
 	return `
 		<div class="desar-stage-card" style="border-left: 3px solid ${color};">
@@ -521,19 +399,183 @@ function _render_stage_section(frm, stage_label, status, wo, batch_no, qi_no, st
 				</span>
 			</div>
 			<div class="desar-stage-body" style="display:${display_style}; border-top:1px solid #f1f5f9;">
-				<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
-					<div>
-						<strong>Work Order:</strong><br>
-						${wo ? `<a href="${frappe.utils.get_form_link("Work Order", wo)}" target="_blank" class="desar-link" style="font-weight:600;">${wo}</a>` : `<span style="color:#6c757d;">Not Created</span>`}
-						${job_cards_html}
-					</div>
-					<div>
-						${se_html}
-					</div>
-				</div>
+				${_details_toggle(__("Details"), details_html)}
 			</div>
 		</div>
 	`;
+}
+
+
+function _qi_badge_html(frm, qi_no) {
+	if (!qi_no) return "";
+	const qi_doc = (frm.dashboard_qis && frm.dashboard_qis[qi_no]) || {};
+	let qi_status = qi_doc.status || "Draft";
+	if (qi_doc.docstatus === 1) {
+		qi_status = qi_doc.status === "Accepted" ? "Accepted" : "Rejected";
+	} else if (qi_doc.docstatus === 0) {
+		qi_status = "Draft";
+	}
+	const badge = _badge(`QI: ${qi_no} (${qi_status})`, qi_status);
+	const submit_btn = qi_doc.docstatus === 0
+		? `<button class="btn btn-xs btn-primary btn-submit-qi" data-qi="${qi_no}" style="padding: 1px 5px; font-size: 10px; margin-left: 4px; line-height: 1.2;">Submit QI</button>`
+		: "";
+	return `<span style="margin-left:8px; display:inline-flex; align-items:center;">
+		<a href="${frappe.utils.get_form_link("Quality Inspection", qi_no)}" target="_blank">${badge}</a>${submit_btn}
+	</span>`;
+}
+
+
+function _roll_stage_se_list(stock_entries, stage_key, packing_manufacture_se) {
+	const se_list = stock_entries.map(se => {
+		const is_mfg = se.purpose === "Manufacture" || se.stock_entry_type === "Manufacture" ||
+			(stage_key === "packing" && se.name === packing_manufacture_se);
+		return { name: se.name, label: is_mfg ? "Manufacture SE" : "Transfer SE", docstatus: se.docstatus };
+	});
+	if (stage_key === "packing" && packing_manufacture_se && !se_list.some(s => s.name === packing_manufacture_se)) {
+		se_list.push({ name: packing_manufacture_se, label: "Manufacture SE", docstatus: 0 });
+	}
+	return se_list;
+}
+
+
+function _warping_se_list(stock_entries, transfer_se, manufacture_se) {
+	const by_name = {};
+	stock_entries.forEach(se => { by_name[se.name] = se; });
+	const se_list = [];
+	const push_named = (name, label) => {
+		if (!name) return;
+		const existing = by_name[name];
+		se_list.push({ name, label, docstatus: existing ? existing.docstatus : 1 });
+	};
+	push_named(transfer_se, "Transfer SE");
+	push_named(manufacture_se, "Manufacture SE");
+	stock_entries.forEach(se => {
+		if (se.name !== transfer_se && se.name !== manufacture_se) {
+			const is_mfg = se.purpose === "Manufacture" || se.stock_entry_type === "Manufacture";
+			se_list.push({ name: se.name, label: is_mfg ? "Manufacture SE" : "Transfer SE", docstatus: se.docstatus });
+		}
+	});
+	return se_list;
+}
+
+
+function _job_cards_html(job_cards, wo) {
+	if (!job_cards.length) {
+		return wo ? `<div style="margin-top: 6px; color:#8c95a5; font-size:11px;">No Job Cards</div>` : "";
+	}
+	return `
+		<div style="margin-top: 6px;">
+			<strong>Job Cards:</strong>
+			<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
+				${job_cards.map(jc => {
+					const badge = _badge(`${jc.operation}: ${jc.status}`, jc.status);
+					return `<a href="${frappe.utils.get_form_link("Job Card", jc.name)}" target="_blank">${badge}</a>`;
+				}).join("")}
+			</div>
+		</div>
+	`;
+}
+
+
+function _stock_entries_html(se_list, wo) {
+	if (!se_list.length) {
+		return wo ? `<div style="margin-top: 6px; color:#8c95a5; font-size:11px;">No Stock Entries</div>` : "";
+	}
+	return `
+		<div style="margin-top: 6px;">
+			<strong>Stock Entries:</strong>
+			<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
+				${se_list.map(se => _se_badge_html(se)).join("")}
+			</div>
+		</div>
+	`;
+}
+
+
+function _se_badge_html(se) {
+	const docstatus_label = se.docstatus === 1 ? "Submitted" : (se.docstatus === 0 ? "Draft" : "Cancelled");
+	const badge = _badge(`${se.label}: ${se.name} (${docstatus_label})`, docstatus_label);
+	const submit_btn = se.docstatus === 0
+		? `<button class="btn btn-xs btn-primary btn-submit-se" data-se="${se.name}" style="padding: 1px 5px; font-size: 10px; margin-left: 4px; line-height: 1.2;">Submit SE</button>`
+		: "";
+	return `
+		<div style="display:inline-flex; align-items:center; margin-bottom: 2px;">
+			<a href="${frappe.utils.get_form_link("Stock Entry", se.name)}" target="_blank">${badge}</a>
+			${submit_btn}
+		</div>
+	`;
+}
+
+
+function _roll_summary_html(roll) {
+	const stages = [
+		["Grey", roll.grey_roll_status],
+		["Finishing", roll.finished_roll_status],
+		["Packing", roll.packing_status],
+	];
+	return stages.map(([label, status]) => _badge(`${label}: ${status || "Not Started"}`, status)).join("");
+}
+
+
+function _details_toggle(label, details_html) {
+	return `
+		<div class="desar-details-toggle" style="cursor:pointer; font-size:11px; color:#2563eb; display:inline-block;">
+			<span class="desar-details-indicator">▸</span> ${label}
+		</div>
+		<div class="desar-details-body" style="display:none; margin-top:8px;">
+			${details_html}
+		</div>
+	`;
+}
+
+
+function _bind_details_toggle($scope) {
+	$scope.on("click", ".desar-details-toggle", function() {
+		const $body = $(this).next(".desar-details-body");
+		const $ind = $(this).find(".desar-details-indicator");
+		if ($body.is(":visible")) {
+			$body.slideUp(120);
+			$ind.text("▸");
+		} else {
+			$body.slideDown(120);
+			$ind.text("▾");
+		}
+	});
+}
+
+
+function _bind_submit_buttons($scope, frm) {
+	$scope.on("click", ".btn-submit-se", function(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		_submit_doc(frm, "Stock Entry", $(this).data("se"));
+	});
+	$scope.on("click", ".btn-submit-qi", function(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		_submit_doc(frm, "Quality Inspection", $(this).data("qi"));
+	});
+}
+
+
+function _submit_doc(frm, doctype, name) {
+	frappe.confirm(
+		__("Are you sure you want to submit {0} {1}?", [doctype, name]),
+		function() {
+			frappe.call({
+				method: "frappe.client.submit",
+				args: { doc: { doctype, name } },
+				freeze: true,
+				freeze_message: __("Submitting {0}...", [doctype]),
+				callback(r) {
+					if (!r.exc) {
+						frappe.show_alert({message: __("{0} submitted successfully", [doctype]), indicator: "green"});
+						frm.reload_doc();
+					}
+				}
+			});
+		}
+	);
 }
 
 
@@ -585,35 +627,81 @@ function _add_roll_buttons($c, frm, roll) {
 
 
 function _split_beam_dialog(frm) {
-	const suggested = frm.doc.pieces_per_roll
-		? Math.ceil(frm.doc.total_qty / frm.doc.pieces_per_roll) : 2;
+	const total_qty = frm.doc.total_qty || 0;
+
 	const d = new frappe.ui.Dialog({
 		title: __("Split Beam into Rolls"),
-		fields: [{
-			fieldname: "roll_count", fieldtype: "Int",
-			label: __("Number of Rolls"), reqd: 1, default: suggested,
-			description: __("Each roll = one loom run. Suggested: {0}", [suggested]),
-		}],
+		size: "large",
+		fields: [
+			{
+				fieldname: "split_rows", fieldtype: "Table", label: __("Split Rows"),
+				reqd: 1,
+				// This Dialog has no frm, so grid.js reads this inline `fields`
+				// array directly (grid.js:571) instead of the child doctype's
+				// meta — mirrors DESAR Beam Split Row's own field definitions.
+				fields: [
+					{ fieldname: "qty_to_split", fieldtype: "Int", label: __("No. of Rolls"), in_list_view: 1, reqd: 1 },
+					{ fieldname: "pieces_per_split", fieldtype: "Int", label: __("Pieces per Roll"), in_list_view: 1, reqd: 1 },
+				],
+				data: [{ qty_to_split: 1, pieces_per_split: total_qty }],
+			},
+			{ fieldname: "split_summary", fieldtype: "HTML" },
+		],
 		primary_action_label: __("Split"),
-		primary_action(values) {
+		primary_action() {
+			const rows = _split_dialog_rows(d);
 			d.hide();
 			frappe.call({
 				method: "desar_manufacturing.api.production_order.split_beam",
-				args: { production_order: frm.doc.name, roll_count: values.roll_count },
+				args: { production_order: frm.doc.name, rows: JSON.stringify(rows) },
 				freeze: true, freeze_message: __("Splitting beam..."),
 				callback(r) {
 					if (r.exc) return;
-					const res = r.message || {};
-					frappe.msgprint(
-						__("Beam split into {0} rolls. Batches: {1}",
-							[res.roll_count, (res.beam_roll_batches || []).join(", ")]),
-						__("Beam Split Complete"));
+					_show_split_result(r.message || {});
 					frm.reload_doc();
 				},
 			});
 		},
 	});
+
+	const refresh_summary = () => _render_split_summary(d, total_qty);
+	d.fields_dict.split_rows.grid.wrapper.on(
+		"change click", "input, select, .grid-add-row, .grid-remove-rows, .grid-remove-all-rows",
+		() => setTimeout(refresh_summary, 50));
 	d.show();
+	refresh_summary();
+}
+
+
+function _split_dialog_rows(d) {
+	return (d.fields_dict.split_rows.grid.get_data() || []).map(r => ({
+		qty_to_split: r.qty_to_split, pieces_per_split: r.pieces_per_split,
+	}));
+}
+
+
+function _render_split_summary(d, total_qty) {
+	const rows = d.fields_dict.split_rows.grid.get_data() || [];
+	const rolls = rows.reduce((sum, r) => sum + cint(r.qty_to_split), 0);
+	const pieces = rows.reduce((sum, r) => sum + cint(r.qty_to_split) * cint(r.pieces_per_split), 0);
+	const ok = pieces === total_qty;
+
+	d.fields_dict.split_summary.$wrapper.html(`
+		<div style="padding:8px 0; font-weight:600; color:${ok ? "#166534" : "#991b1b"};">
+			${__("Rolls")}: ${rolls} &nbsp;|&nbsp; ${__("Pieces")}: ${pieces} / ${total_qty}
+			${ok ? " ✓" : ""}
+		</div>
+	`);
+}
+
+
+function _show_split_result(res) {
+	const plan_html = (res.roll_plan || [])
+		.map(rp => __("Roll {0}: {1} pcs", [rp.roll_no, rp.planned_qty]))
+		.join("<br>");
+	frappe.msgprint(
+		__("Beam split into {0} rolls.<br>{1}", [res.roll_count, plan_html]),
+		__("Beam Split Complete"));
 }
 
 

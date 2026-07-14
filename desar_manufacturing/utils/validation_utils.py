@@ -4,8 +4,40 @@ DESAR Manufacturing — Validation Utilities
 Pure functions only.
 No database calls. No side effects. Fully unit-testable.
 """
+import math
 from frappe.utils import flt
 from typing import Tuple, Optional
+
+
+def _check_total_against_wo_qty(total: float, wo_qty: float) -> Tuple[bool, Optional[str]]:
+    """Shared strict total-vs-wo_qty comparison used by both the fixed-grade
+    and dynamic (N-grade) final-count checks — every piece must be accounted for."""
+    total = flt(total)
+    wo_qty = flt(wo_qty)
+
+    if not total:
+        # No final grades entered — this is not a final QI
+        return True, None
+
+    if not wo_qty:
+        # Cannot validate without WO qty — pass silently
+        return True, None
+
+    if total > wo_qty:
+        return False, (
+            "Final grade total ({total}) cannot exceed manufactured qty ({wo_qty}). "
+            "Check your grade counts."
+        ).format(total=int(total), wo_qty=int(wo_qty))
+
+    if total < wo_qty:
+        diff = int(wo_qty - total)
+        return False, (
+            "Final grade total ({total}) is less than manufactured qty ({wo_qty}). "
+            "{diff} piece(s) unaccounted. "
+            "Add the missing piece(s) to Grade C/Scrap."
+        ).format(total=int(total), wo_qty=int(wo_qty), diff=diff)
+
+    return True, None
 
 
 def validate_final_grade_counts(
@@ -39,31 +71,53 @@ def validate_final_grade_counts(
         # valid=False, msg="...2 pieces unaccounted..."
     """
     total = flt(grade_a) + flt(grade_b) + flt(grade_c)
-    wo_qty = flt(wo_qty)
+    return _check_total_against_wo_qty(total, wo_qty)
 
+
+def validate_grade_readings_total(total: float, wo_qty: float) -> Tuple[bool, Optional[str]]:
+    """
+    Same strict check as validate_final_grade_counts, for the dynamic
+    (configurable N-grade) QI Grade Readings path where the caller has
+    already summed all grade rows to a single total.
+    """
+    return _check_total_against_wo_qty(total, wo_qty)
+
+
+def validate_estimate_reasonable(
+    stage_label: str,
+    grade_a: float,
+    grade_b: float,
+    grade_c: float,
+    max_expected: int = 80,
+    min_expected: int = 10,
+) -> Optional[str]:
+    """
+    Soft check: warn if a stage's grade estimate totals seem unusual.
+    Does NOT block submission — returns warning string or None.
+
+    Args:
+        stage_label: human-readable stage name for the warning message (e.g. "Grey", "Finishing")
+        grade_a, grade_b, grade_c: stage grade estimates
+        max_expected: Warn if total exceeds this (default 80)
+        min_expected: Warn if total is below this (default 10)
+
+    Returns:
+        Warning message string, or None if counts look normal.
+    """
+    total = flt(grade_a) + flt(grade_b) + flt(grade_c)
     if not total:
-        # No final grades entered — this is not a final QI
-        return True, None
-
-    if not wo_qty:
-        # Cannot validate without WO qty — pass silently
-        return True, None
-
-    if total > wo_qty:
-        return False, (
-            "Final grade total ({total}) cannot exceed manufactured qty ({wo_qty}). "
-            "Check your Grade A / B / C counts."
-        ).format(total=int(total), wo_qty=int(wo_qty))
-
-    if total < wo_qty:
-        diff = int(wo_qty - total)
-        return False, (
-            "Final grade total ({total}) is less than manufactured qty ({wo_qty}). "
-            "{diff} piece(s) unaccounted. "
-            "Add the missing piece(s) to Grade C/Scrap."
-        ).format(total=int(total), wo_qty=int(wo_qty), diff=diff)
-
-    return True, None
+        return None
+    if total > max_expected:
+        return (
+            "{stage} grade total is {total} pieces — unusually high. "
+            "Please verify before submitting."
+        ).format(stage=stage_label, total=int(total))
+    if total < min_expected:
+        return (
+            "{stage} grade total is {total} pieces — unusually low. "
+            "Please verify before submitting."
+        ).format(stage=stage_label, total=int(total))
+    return None
 
 
 def validate_grey_estimate_reasonable(
@@ -73,32 +127,8 @@ def validate_grey_estimate_reasonable(
     max_expected: int = 80,
     min_expected: int = 10,
 ) -> Optional[str]:
-    """
-    Soft check: warn if grey estimate totals seem unusual.
-    Does NOT block submission — returns warning string or None.
-
-    Args:
-        grey_a, grey_b, grey_c: Grey stage grade estimates
-        max_expected: Warn if total exceeds this (default 80)
-        min_expected: Warn if total is below this (default 10)
-
-    Returns:
-        Warning message string, or None if counts look normal.
-    """
-    total = flt(grey_a) + flt(grey_b) + flt(grey_c)
-    if not total:
-        return None
-    if total > max_expected:
-        return (
-            "Grey grade total is {total} pieces — unusually high. "
-            "Please verify before submitting."
-        ).format(total=int(total))
-    if total < min_expected:
-        return (
-            "Grey grade total is {total} pieces — unusually low. "
-            "Please verify before submitting."
-        ).format(total=int(total))
-    return None
+    """Soft check for Grey stage estimate totals. See validate_estimate_reasonable."""
+    return validate_estimate_reasonable("Grey", grey_a, grey_b, grey_c, max_expected, min_expected)
 
 
 def validate_finishing_estimate_reasonable(
@@ -108,20 +138,31 @@ def validate_finishing_estimate_reasonable(
     max_expected: int = 80,
     min_expected: int = 10,
 ) -> Optional[str]:
-    """Same as grey estimate validation but for finishing stage."""
-    total = flt(fin_a) + flt(fin_b) + flt(fin_c)
-    if not total:
-        return None
-    if total > max_expected:
-        return (
-            "Finishing grade total is {total} pieces — unusually high. "
-            "Please verify before submitting."
-        ).format(total=int(total))
-    if total < min_expected:
-        return (
-            "Finishing grade total is {total} pieces — unusually low. "
-            "Please verify before submitting."
-        ).format(total=int(total))
+    """Soft check for Finishing stage estimate totals. See validate_estimate_reasonable."""
+    return validate_estimate_reasonable("Finishing", fin_a, fin_b, fin_c, max_expected, min_expected)
+
+
+def round_up_if_needed(qty: float, must_be_whole_number: bool) -> float:
+    """
+    Round qty up to the next whole number when its UOM requires it.
+
+    ERPNext's BOM-ratio MRP explosion can produce a fractional sub-assembly
+    requirement (e.g. 161 pieces / 50 per roll = 3.22 rolls) with no rounding
+    of its own, then hard-rejects saving a Work Order for a whole-number UOM
+    with that fractional qty. Round up rather than down/nearest — under-
+    provisioning a physical unit (a beam, a roll) isn't a valid option.
+    """
+    qty = flt(qty)
+    if must_be_whole_number and qty != int(qty):
+        return float(math.ceil(qty))
+    return qty
+
+
+def resolve_by_keyword(stage_keyword: str, mapping: dict) -> Optional[str]:
+    """First mapping value whose key is a substring of stage_keyword, else None."""
+    for keyword, value in mapping.items():
+        if keyword in stage_keyword:
+            return value
     return None
 
 

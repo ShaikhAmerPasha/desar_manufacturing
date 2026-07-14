@@ -1,0 +1,63 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [main, new]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: apps/desar_manufacturing
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y redis-server mariadb-client
+
+      - name: Install bench
+        run: pip install frappe-bench
+
+      - name: Init bench
+        run: bench init --skip-assets --python "$(which python)" ~/frappe-bench --frappe-branch version-15
+
+      - name: Get ERPNext
+        working-directory: /home/runner/frappe-bench
+        run: bench get-app erpnext --branch version-15
+
+      - name: Get desar_manufacturing
+        working-directory: /home/runner/frappe-bench
+        run: bench get-app desar_manufacturing "${{ github.workspace }}/apps/desar_manufacturing"
+
+      - name: Create site and install apps
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench new-site test_site --mariadb-root-password root --admin-password admin --no-mariadb-socket --db-host 127.0.0.1
+          bench --site test_site install-app erpnext
+          bench --site test_site install-app desar_manufacturing
+
+      - name: Run tests
+        working-directory: /home/runner/frappe-bench
+        run: bench --site test_site run-tests --app desar_manufacturing

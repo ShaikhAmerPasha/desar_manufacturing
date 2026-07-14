@@ -1,5 +1,8 @@
 import frappe
 from frappe import _
+from frappe.utils import flt
+
+from desar_manufacturing.utils.grade_utils import get_final_stage_names
 
 def execute(filters=None):
     return get_columns(), get_data(filters or {})
@@ -27,29 +30,71 @@ def get_columns():
     ]
 
 def get_data(filters):
-    conds = []
-    vals = {}
-    if filters.get("design_no"):
-        conds.append("rt.design_no = %(design_no)s")
-        vals["design_no"] = filters["design_no"]
-    if filters.get("article_name"):
-        conds.append("rt.article_name = %(article_name)s")
-        vals["article_name"] = filters["article_name"]
-    if filters.get("roll_status"):
-        conds.append("rt.roll_status = %(roll_status)s")
-        vals["roll_status"] = filters["roll_status"]
-    where = ("WHERE " + " AND ".join(conds)) if conds else ""
-    rows = frappe.db.sql("""
-        SELECT rt.name AS roll_ticket, rt.roll_batch, rt.parent_beam_batch AS parent_beam,
-               rt.design_no, rt.article_name AS article, rt.size, rt.roll_status AS status,
-               rt.grey_qty_a AS grey_a, rt.grey_qty_b AS grey_b, rt.grey_qty_c AS grey_c,
-               rt.finished_qty_a AS fin_a, rt.finished_qty_b AS fin_b, rt.finished_qty_c AS fin_c,
-               rt.cutted_qty_a AS cut_a, rt.cutted_qty_b AS cut_b, rt.cutted_qty_c AS cut_c,
-               rt.cutted_total AS cut_total
-        FROM `tabRoll Ticket` rt {where}
-        ORDER BY rt.creation DESC
-    """.format(where=where), vals, as_dict=True)
+    rt_filters = {}
+    for key in ("design_no", "article_name", "roll_status"):
+        if filters.get(key):
+            rt_filters[key] = filters[key]
+
+    tickets = frappe.get_all(
+        "Roll Ticket",
+        filters=rt_filters,
+        fields=["name", "roll_batch", "parent_beam_batch", "design_no", "article_name", "size", "roll_status"],
+        order_by="creation desc",
+    )
+    if not tickets:
+        return []
+
+    stage_rows_by_ticket = _fetch_stage_rows([t.name for t in tickets])
+    final_stages = set(get_final_stage_names())
+    return [_build_row(rt, stage_rows_by_ticket.get(rt.name, []), final_stages) for rt in tickets]
+
+
+def _fetch_stage_rows(ticket_names):
+    rows = frappe.get_all(
+        "DESAR Roll Ticket Stage Grade",
+        filters={"parent": ["in", ticket_names]},
+        fields=["parent", "stage_seq", "stage_name", "grade_code", "qty"],
+    )
+    grouped = {}
     for r in rows:
-        t = r.get("cut_total") or 0
-        r["yield_a"] = round((r.get("cut_a") or 0) / t * 100, 1) if t else 0
-    return rows
+        grouped.setdefault(r.parent, []).append(r)
+    return grouped
+
+
+def _build_row(rt, stage_rows, final_stages):
+    grey_stage, fin_stage, cut_stage = _resolve_stage_buckets(stage_rows, final_stages)
+    grey = _grade_totals(stage_rows, grey_stage)
+    fin = _grade_totals(stage_rows, fin_stage)
+    cut = _grade_totals(stage_rows, cut_stage)
+    cut_total = cut["A"] + cut["B"] + cut["C"]
+    return {
+        "roll_ticket": rt.name, "roll_batch": rt.roll_batch, "parent_beam": rt.parent_beam_batch,
+        "design_no": rt.design_no, "article": rt.article_name, "size": rt.size, "status": rt.roll_status,
+        "grey_a": grey["A"], "grey_b": grey["B"], "grey_c": grey["C"],
+        "fin_a": fin["A"], "fin_b": fin["B"], "fin_c": fin["C"],
+        "cut_a": cut["A"], "cut_b": cut["B"], "cut_c": cut["C"],
+        "cut_total": cut_total,
+        "yield_a": round(cut["A"] / cut_total * 100, 1) if cut_total else 0,
+    }
+
+
+def _resolve_stage_buckets(stage_rows, final_stages):
+    """First stage seen = grey, a stage flagged is_final_stage = cut, anything in between = fin."""
+    seq_by_name = {}
+    for r in stage_rows:
+        seq_by_name.setdefault(r.stage_name, r.stage_seq)
+    ordered = sorted(seq_by_name, key=lambda name: seq_by_name[name])
+    if not ordered:
+        return None, None, None
+    grey_stage = ordered[0]
+    cut_stage = next((s for s in ordered if s in final_stages), ordered[-1])
+    fin_stage = next((s for s in ordered if s not in (grey_stage, cut_stage)), None)
+    return grey_stage, fin_stage, cut_stage
+
+
+def _grade_totals(stage_rows, stage_name):
+    totals = {"A": 0, "B": 0, "C": 0}
+    for r in stage_rows:
+        if r.stage_name == stage_name and r.grade_code in totals:
+            totals[r.grade_code] += flt(r.qty)
+    return totals
