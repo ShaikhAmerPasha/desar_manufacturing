@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "creation": "2026-07-13 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "qty_to_split",
+  "pieces_per_split"
+ ],
+ "fields": [
+  {
+   "fieldname": "qty_to_split",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "No. of Rolls",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pieces_per_split",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Pieces per Roll",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-13 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Desar Manufacturing",
+ "name": "DESAR Beam Split Row",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

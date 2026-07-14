@@ -16,6 +16,7 @@ from desar_manufacturing.repositories.roll_ticket_repository import RollTicketRe
 from desar_manufacturing.repositories.work_order_repository import WorkOrderRepository
 from desar_manufacturing.repositories.stock_entry_repository import StockEntryRepository
 from desar_manufacturing.config.settings_manager import SettingsManager
+from desar_manufacturing.utils.grade_utils import is_final_stage, get_design_master_from_qi
 
 
 class RollTicketService:
@@ -84,6 +85,11 @@ class RollTicketService:
             frappe.log_error(
                 title=f"DESAR: Roll Ticket creation failed — batch {batch_no}",
                 message=frappe.get_traceback(),
+            )
+            frappe.msgprint(
+                _("Roll Ticket could not be created for batch {0}. Create it manually.").format(batch_no),
+                alert=True,
+                indicator="orange",
             )
             return None
 
@@ -167,32 +173,36 @@ class RollTicketService:
         Reads Stage Configuration to find next status.
         Final stage → Completed.
         Non-final stage → In {next_stage_name}.
+
+        All Stage Configuration lookups here are scoped to this QI's own
+        Design Master — stage names repeat across Design Masters with
+        different configs/sequences, so an unscoped lookup could pick up a
+        completely unrelated Design Master's is_final_stage flag or stage
+        ordering (a real bug this fixed: grade-total validation fired on a
+        non-final stage because another Design Master flagged that stage
+        name as final).
         """
-        # Check if this is final stage
-        is_final = frappe.db.get_value(
-            "DESAR Stage Configuration",
-            filters={"stage_name": stage_name, "is_final_stage": 1},
-            fieldname="name",
-        )
-        if is_final:
+        design_master = get_design_master_from_qi(qi_doc)
+        if is_final_stage(stage_name, design_master):
             return RollStatus.COMPLETED
 
         # Find next stage name
         current_seq = frappe.db.get_value(
             "DESAR Stage Configuration",
-            filters={"stage_name": stage_name},
+            filters={"parent": design_master, "stage_name": stage_name},
             fieldname="stage_seq",
         )
         if current_seq:
             next_stage = frappe.db.get_value(
                 "DESAR Stage Configuration",
-                filters={"stage_seq": int(current_seq) + 1},
+                filters={"parent": design_master, "stage_seq": int(current_seq) + 1},
                 fieldname="stage_name",
             )
             if next_stage:
                 return cls._stage_to_status(next_stage)
 
-        # Fallback mapping
+        # No Stage Configuration sequence found — fall back to keyword
+        # matching on the current stage name to guess the next status.
         stage_lower = stage_name.lower()
         if "weaving" in stage_lower or "grey" in stage_lower:
             return RollStatus.IN_FINISHING
@@ -256,3 +266,68 @@ class RollTicketService:
         readings = qi_doc.get("custom_desar_grade_readings") or []
         if readings:
             cls._update_stage_grades(rt_name, qi_doc, stage_name, readings)
+
+    # ── Cancel reconciliation ───────────────────────────────────────────────
+
+    @classmethod
+    def revert_from_qi_cancel(cls, qi_doc) -> Optional[str]:
+        """
+        Undo update_from_qi()'s effect on the linked Roll Ticket when its
+        source QI is cancelled: drop this QI's stage_grades rows and roll
+        roll_status back to "in this stage" rather than leaving it advanced
+        past an inspection that no longer exists.
+        """
+        rt_name = cls._find_roll_ticket_for_qi(qi_doc)
+        if not rt_name or not frappe.db.exists("Roll Ticket", rt_name):
+            return None
+
+        rt = frappe.get_doc("Roll Ticket", rt_name)
+        remaining = [r for r in (rt.stage_grades or []) if r.qi_reference != qi_doc.name]
+        if len(remaining) == len(rt.stage_grades or []):
+            return None  # this QI never wrote any stage_grades rows — nothing to revert
+
+        rt.stage_grades = remaining
+        stage_name = qi_doc.get("custom_desar_stage_name") or ""
+        if stage_name:
+            rt.roll_status = cls._stage_to_status(stage_name)
+        rt.save(ignore_permissions=True)
+
+        frappe.msgprint(
+            _("Roll Ticket <b>{0}</b> reverted — QI {1} was cancelled.").format(rt_name, qi_doc.name),
+            alert=True,
+        )
+        return rt_name
+
+    @classmethod
+    def revert_roll_ticket_creation(cls, batch_no: str) -> None:
+        """
+        On Stock Entry cancel: if a Roll Ticket was auto-created for the
+        batch that SE produced and no stage progress has been recorded on
+        it yet, delete it — it only existed because of the now-cancelled SE.
+        If stage progress already exists, leave it for manual review rather
+        than destroying recorded inspection data.
+        """
+        rt_name = RollTicketRepository.find_by_batch(batch_no)
+        if not rt_name:
+            return
+
+        rt = frappe.get_doc("Roll Ticket", rt_name)
+        if rt.stage_grades:
+            frappe.log_error(
+                title=f"DESAR: Roll Ticket {rt_name} orphaned by cancelled Stock Entry",
+                message=(
+                    f"Batch {batch_no}'s creating Stock Entry was cancelled, but Roll Ticket "
+                    f"{rt_name} already has stage grades recorded. Not auto-deleted — review manually."
+                ),
+            )
+            frappe.msgprint(
+                _("Roll Ticket {0} already has recorded stage grades — please review it manually.").format(rt_name),
+                alert=True, indicator="orange",
+            )
+            return
+
+        frappe.delete_doc("Roll Ticket", rt_name, ignore_permissions=True, force=True)
+        frappe.msgprint(
+            _("Roll Ticket {0} deleted — its Stock Entry was cancelled.").format(rt_name),
+            alert=True,
+        )

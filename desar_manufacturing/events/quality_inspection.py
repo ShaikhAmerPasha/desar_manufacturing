@@ -6,6 +6,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from desar_manufacturing.utils.grade_utils import is_final_stage, get_design_master_from_qi, get_work_order_from_qi
+from desar_manufacturing.utils.validation_utils import validate_grade_readings_total
+
 
 def before_submit(doc, method):
     readings = doc.get("custom_desar_grade_readings") or []
@@ -15,14 +18,12 @@ def before_submit(doc, method):
     if not total:
         return
     stage_name = doc.get("custom_desar_stage_name") or ""
-    if not _is_final_stage(stage_name):
+    if not is_final_stage(stage_name, get_design_master_from_qi(doc)):
         return
     wo_qty = _get_wo_qty(doc)
-    if wo_qty and abs(total - flt(wo_qty)) > 0.01:
-        if total > flt(wo_qty):
-            frappe.throw(_("Final grade total ({0}) cannot exceed manufactured qty ({1}).").format(int(total), int(wo_qty)))
-        else:
-            frappe.throw(_("Final grade total ({0}) is less than manufactured qty ({1}). {2} piece(s) unaccounted.").format(int(total), int(wo_qty), int(flt(wo_qty) - total)))
+    valid, message = validate_grade_readings_total(total, wo_qty)
+    if not valid:
+        frappe.throw(_(message))
     _validate_grade_adjustments(doc, stage_name, readings)
 
 
@@ -81,28 +82,31 @@ def _get_stage_grades_from_rt(rt_name, stage_name_pattern):
     return {r.grade_code: flt(r.qty) for r in rows}
 
 
-def _is_final_stage(stage_name):
-    if not stage_name:
-        return False
-    return bool(frappe.db.get_value(
-        "DESAR Stage Configuration",
-        filters={"stage_name": stage_name, "is_final_stage": 1},
-        fieldname="name",
-    ))
-
-
 def on_submit(doc, method):
     from desar_manufacturing.services.roll_ticket_service import RollTicketService
     RollTicketService.update_from_qi(doc)
-    if _is_final_stage(doc.get("custom_desar_stage_name") or ""):
+    if is_final_stage(doc.get("custom_desar_stage_name") or "", get_design_master_from_qi(doc)):
         from desar_manufacturing.services.repack_service import RepackService
         RepackService.create_from_final_qi(doc)
 
 
+def on_cancel(doc, method):
+    from desar_manufacturing.services.roll_ticket_service import RollTicketService
+    from desar_manufacturing.services.roll_service import revert_qi_reference
+
+    RollTicketService.revert_from_qi_cancel(doc)
+    revert_qi_reference(doc.name)
+
+    if is_final_stage(doc.get("custom_desar_stage_name") or "", get_design_master_from_qi(doc)):
+        frappe.msgprint(
+            _(
+                "This was a Final Packing QI. If a Repack Stock Entry was auto-created "
+                "from it, review and cancel it manually — it was not reversed automatically."
+            ),
+            alert=True, indicator="orange",
+        )
+
+
 def _get_wo_qty(doc):
-    from frappe.utils import flt as _flt
-    if doc.reference_type == "Stock Entry" and doc.reference_name:
-        wo_name = frappe.db.get_value("Stock Entry", doc.reference_name, "work_order")
-        if wo_name:
-            return _flt(frappe.db.get_value("Work Order", wo_name, "qty"))
-    return 0
+    wo_name = get_work_order_from_qi(doc)
+    return flt(frappe.db.get_value("Work Order", wo_name, "qty")) if wo_name else 0

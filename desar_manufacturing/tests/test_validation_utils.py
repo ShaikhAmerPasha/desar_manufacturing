@@ -40,7 +40,25 @@ from desar_manufacturing.utils.validation_utils import (
     validate_grey_estimate_reasonable,
     validate_finishing_estimate_reasonable,
     derive_grade_b_item,
+    round_up_if_needed,
 )
+
+
+class TestRoundUpIfNeeded(unittest.TestCase):
+    """Fractional sub-assembly qty (e.g. 161/50=3.22) must round up, never down/nearest."""
+
+    def test_fractional_whole_number_uom_rounds_up(self):
+        self.assertEqual(round_up_if_needed(3.22, True), 4.0)
+
+    def test_fractional_non_whole_number_uom_unchanged(self):
+        self.assertEqual(round_up_if_needed(3.22, False), 3.22)
+
+    def test_already_whole_unchanged_even_if_whole_number_uom(self):
+        self.assertEqual(round_up_if_needed(4.0, True), 4.0)
+
+    def test_just_over_whole_still_rounds_up(self):
+        """3.01 must become 4, not 3 — under-provisioning a physical unit isn't valid."""
+        self.assertEqual(round_up_if_needed(3.01, True), 4.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

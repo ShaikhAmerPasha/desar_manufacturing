@@ -15,6 +15,7 @@ Version: 2.3.0
 import frappe
 import unittest
 from frappe.utils import nowdate, flt
+from frappe.tests.utils import FrappeTestCase
 
 
 class TestRollTicketServiceUnit(unittest.TestCase):
@@ -108,15 +109,19 @@ class TestRollTicketServiceUnit(unittest.TestCase):
         self.assertEqual(stage_name, "Packing")
 
 
-class TestRollTicketServiceIntegration(unittest.TestCase):
+class TestRollTicketServiceIntegration(FrappeTestCase):
     """
     Integration tests that create real Frappe documents.
-    Each test is fully isolated — creates and cleans up its own data.
+
+    FrappeTestCase wraps the whole class in one DB transaction and rolls
+    it back after the last test runs — no manual cleanup needed, as long
+    as no test commits explicitly (a commit flushes past that rollback).
     """
 
     @classmethod
     def setUpClass(cls):
         """One-time check: verify DESAR Settings is configured."""
+        super().setUpClass()
         frappe.set_user("Administrator")
         if not frappe.db.exists("DocType", "DESAR Settings"):
             raise unittest.SkipTest(
@@ -124,26 +129,8 @@ class TestRollTicketServiceIntegration(unittest.TestCase):
                 "Install desar_manufacturing app first."
             )
 
-    def setUp(self):
-        frappe.set_user("Administrator")
-        self._cleanup = []  # list of (doctype, name) to delete in tearDown
-
-    def tearDown(self):
-        frappe.set_user("Administrator")
-        for doctype, name in reversed(self._cleanup):
-            try:
-                if frappe.db.exists(doctype, name):
-                    doc = frappe.get_doc(doctype, name)
-                    if getattr(doc, "docstatus", 0) == 1:
-                        doc.cancel()
-                    frappe.delete_doc(doctype, name, force=True, ignore_missing=True)
-            except Exception as e:
-                frappe.logger().warning(f"Cleanup failed for {doctype}/{name}: {e}")
-        frappe.db.commit()
-
     def _track(self, doctype, name):
-        """Register a document for cleanup in tearDown."""
-        self._cleanup.append((doctype, name))
+        """Kept for call-site compatibility — cleanup is now automatic via FrappeTestCase's rollback."""
         return name
 
     def _make_grey_roll_batch(self, batch_id):
@@ -243,7 +230,6 @@ class TestRollTicketServiceIntegration(unittest.TestCase):
             VALUES
                 (%s, %s, %s, %s, %s, 'Administrator', 'Administrator', NOW(), NOW())
         """, (rt_name, batch_id, "In Grey Store", 1, "Nos"))
-        frappe.db.commit()
         self._track("Roll Ticket", rt_name)
 
         # Mock QI with grey grades
@@ -309,7 +295,6 @@ class TestRollTicketServiceIntegration(unittest.TestCase):
             VALUES
                 (%s, %s, %s, %s, %s, 'Administrator', 'Administrator', NOW(), NOW())
         """, (rt_name, batch_id, "In Packing", 1, "Nos"))
-        frappe.db.commit()
         self._track("Roll Ticket", rt_name)
 
         # IMPORTANT: batch_no must be in the get() data dict
@@ -381,7 +366,7 @@ class TestRepackServiceUnit(unittest.TestCase):
     """
 
     def test_build_items_all_grades(self):
-        """All 3 output rows created when all grades present"""
+        """Source + 2 valued output rows when Grade A and B present; scrap qty (in total) gets no output row"""
         from desar_manufacturing.services.repack_service import RepackService
 
         items = RepackService._build_items(
@@ -390,16 +375,13 @@ class TestRepackServiceUnit(unittest.TestCase):
             wh_src="Cutting - ST",
             wh_a="FG Grade A - ST",
             wh_b="FG Grade B - ST",
-            wh_sc="Scrap Yard - ST",
-            total=50,
+            total=50,  # includes 2 units of disposed scrap
             grade_a=42,
             grade_b=6,
-            grade_c=2,
             val_rate=100.0,
         )
 
-        # Must have 4 rows: 1 source + 3 output
-        self.assertEqual(len(items), 4)
+        self.assertEqual(len(items), 3)
 
         source_row = items[0]
         self.assertEqual(source_row["item_code"], "Shemagh-VIC-60-A")
@@ -416,10 +398,6 @@ class TestRepackServiceUnit(unittest.TestCase):
         self.assertEqual(grade_b_row["qty"], 6)
         self.assertAlmostEqual(grade_b_row["basic_rate"], 60.0, places=1)
 
-        scrap_row = items[3]
-        self.assertEqual(scrap_row["qty"], 2)
-        self.assertAlmostEqual(scrap_row["basic_rate"], 5.0, places=1)
-
     def test_grade_b_skipped_when_qty_zero(self):
         """No Grade B pieces → no Grade B row"""
         from desar_manufacturing.services.repack_service import RepackService
@@ -430,21 +408,20 @@ class TestRepackServiceUnit(unittest.TestCase):
             wh_src="Cutting - ST",
             wh_a="FG Grade A - ST",
             wh_b="FG Grade B - ST",
-            wh_sc="Scrap Yard - ST",
             total=50,
             grade_a=48,
             grade_b=0,
-            grade_c=2,
             val_rate=100.0,
         )
 
         item_codes = [r["item_code"] for r in items]
         self.assertNotIn("Shemagh-VIC-60-B", item_codes)
-        self.assertEqual(len(items), 3)  # source + grade_a + scrap
+        self.assertEqual(len(items), 2)  # source + grade_a only
 
-    def test_scrap_skipped_when_qty_zero(self):
-        """No scrap → no scrap row"""
+    def test_scrap_never_produces_an_output_row(self):
+        """Scrap has no item/qty parameter in _build_items at all — nothing to book as stock."""
         from desar_manufacturing.services.repack_service import RepackService
+        from desar_manufacturing.constants import SHEMAGH_SCRAP
 
         items = RepackService._build_items(
             item_a="Shemagh-VIC-60-A",
@@ -452,15 +429,12 @@ class TestRepackServiceUnit(unittest.TestCase):
             wh_src="Cutting - ST",
             wh_a="FG Grade A - ST",
             wh_b="FG Grade B - ST",
-            wh_sc="Scrap Yard - ST",
-            total=50,
+            total=50,  # 44 A + 6 B, remaining 0 implicitly disposed
             grade_a=44,
             grade_b=6,
-            grade_c=0,
             val_rate=100.0,
         )
 
-        from desar_manufacturing.constants import SHEMAGH_SCRAP
         item_codes = [r["item_code"] for r in items]
         self.assertNotIn(SHEMAGH_SCRAP, item_codes)
 
@@ -471,31 +445,14 @@ class TestRepackServiceUnit(unittest.TestCase):
         items = RepackService._build_items(
             item_a="Shemagh-VIC-60-A",
             item_b="Shemagh-VIC-60-B",
-            wh_src="S", wh_a="A", wh_b="B", wh_sc="SC",
-            total=50, grade_a=42, grade_b=6, grade_c=2,
+            wh_src="S", wh_a="A", wh_b="B",
+            total=50, grade_a=42, grade_b=6,
             val_rate=18.04,
         )
 
-        grade_a_rate = items[1]["basic_rate"]
         grade_b_rate = items[2]["basic_rate"]
         expected_b = round(18.04 * 0.6, 2)
         self.assertAlmostEqual(grade_b_rate, expected_b, places=2)
-
-    def test_scrap_valuation_is_5_percent(self):
-        """Scrap must always be exactly 5% of Grade A rate"""
-        from desar_manufacturing.services.repack_service import RepackService
-
-        items = RepackService._build_items(
-            item_a="Shemagh-VIC-60-A",
-            item_b="Shemagh-VIC-60-B",
-            wh_src="S", wh_a="A", wh_b="B", wh_sc="SC",
-            total=50, grade_a=42, grade_b=6, grade_c=2,
-            val_rate=18.04,
-        )
-
-        scrap_rate = items[3]["basic_rate"]
-        expected_scrap = round(18.04 * 0.05, 2)
-        self.assertAlmostEqual(scrap_rate, expected_scrap, places=2)
 
 
 class TestSettingsManager(unittest.TestCase):

@@ -40,15 +40,24 @@ fixtures = [
 
 doc_events = {
     "Stock Entry": {
-        "on_submit": "desar_manufacturing.events.stock_entry.on_submit",
+        "before_validate": "desar_manufacturing.events.stock_entry.before_validate",
+        "on_submit":       "desar_manufacturing.events.stock_entry.on_submit",
+        "on_cancel":       "desar_manufacturing.events.stock_entry.on_cancel",
     },
     "Quality Inspection": {
         "before_submit": "desar_manufacturing.events.quality_inspection.before_submit",
         "on_submit":     "desar_manufacturing.events.quality_inspection.on_submit",
+        "on_cancel":     "desar_manufacturing.events.quality_inspection.on_cancel",
     },
     "Work Order": {
-        "validate":      "desar_manufacturing.events.work_order.validate",
-        "before_submit": "desar_manufacturing.events.work_order.before_submit",
+        "before_insert":   "desar_manufacturing.events.work_order.before_insert",
+        "before_validate": "desar_manufacturing.events.work_order.before_validate",
+        "validate":        "desar_manufacturing.events.work_order.validate",
+        "before_submit":   "desar_manufacturing.events.work_order.before_submit",
+        "on_cancel":       "desar_manufacturing.events.work_order.on_cancel",
+    },
+    "Production Plan": {
+        "validate": "desar_manufacturing.events.production_plan.validate",
     },
     "DESAR Settings": {
         "on_update": "desar_manufacturing.config.settings_manager.on_settings_update",

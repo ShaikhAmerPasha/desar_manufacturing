@@ -32,8 +32,8 @@ frappe.ui.form.on("Production Plan", {
 					}
 
 					frappe.confirm(
-						__("Design: <b>{0} ({1})</b><br>Rolls: <b>{2}</b><br>Pieces per Roll: <b>{3}</b><br>Total Qty: <b>{4}</b><br><br>Proceed?",
-							[p.article_name, p.design_no, p.roll_count, p.pieces_per_roll, p.total_qty]),
+						__("Design: <b>{0} ({1})</b><br>Total Qty: <b>{2}</b><br>Suggested Pieces per Roll: <b>{3}</b><br><br>Roll count and split are decided later at Beam Split.<br><br>Proceed?",
+							[p.article_name, p.design_no, p.total_qty, p.pieces_per_roll]),
 						function() {
 							frappe.call({
 								method: "desar_manufacturing.api.production_order.create_desar_po",
@@ -44,8 +44,8 @@ frappe.ui.form.on("Production Plan", {
 									if (r.exc) return;
 									const res = r.message || {};
 									frappe.show_alert({
-										message: __("DESAR Production Order {0} created — {1} rolls, {2} pcs",
-											[res.production_order, res.roll_count, res.total_qty]),
+										message: __("DESAR Production Order {0} created — {1} pcs",
+											[res.production_order, res.total_qty]),
 										indicator: "green",
 									}, 8);
 									// Navigate to the new PO

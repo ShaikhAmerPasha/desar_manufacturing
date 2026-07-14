@@ -1,6 +1,8 @@
 import frappe
 from frappe import _
 
+from desar_manufacturing.utils.grade_utils import get_final_stage_names
+
 def execute(filters=None):
     return get_columns(), get_data()
 
@@ -20,14 +22,22 @@ def get_columns():
     ]
 
 def get_data():
+    final_stages = get_final_stage_names()
+    if not final_stages:
+        return []
     rows = frappe.db.sql("""
-        SELECT article_name AS article, design_no, size,
-               COUNT(*) AS rolls, SUM(cutted_total) AS total_pcs,
-               SUM(cutted_qty_a) AS grade_a, SUM(cutted_qty_b) AS grade_b, SUM(cutted_qty_c) AS grade_c
-        FROM `tabRoll Ticket` WHERE roll_status = 'Completed'
-        GROUP BY article_name, design_no, size
-        ORDER BY article_name, design_no, size
-    """, as_dict=True)
+        SELECT rt.article_name AS article, rt.design_no AS design_no, rt.size AS size,
+               COUNT(DISTINCT rt.name) AS rolls, SUM(sg.qty) AS total_pcs,
+               SUM(CASE WHEN sg.grade_code = 'A' THEN sg.qty ELSE 0 END) AS grade_a,
+               SUM(CASE WHEN sg.grade_code = 'B' THEN sg.qty ELSE 0 END) AS grade_b,
+               SUM(CASE WHEN sg.grade_code = 'C' THEN sg.qty ELSE 0 END) AS grade_c
+        FROM `tabRoll Ticket` rt
+        JOIN `tabDESAR Roll Ticket Stage Grade` sg
+            ON sg.parent = rt.name AND sg.stage_name IN %(final_stages)s
+        WHERE rt.roll_status = 'Completed'
+        GROUP BY rt.article_name, rt.design_no, rt.size
+        ORDER BY rt.article_name, rt.design_no, rt.size
+    """, {"final_stages": final_stages}, as_dict=True)
     for r in rows:
         t = r.get("total_pcs") or 0
         r["pct_a"] = round((r.get("grade_a") or 0) / t * 100, 1) if t else 0

@@ -12,6 +12,7 @@ from frappe.utils import flt, cint
 from desar_manufacturing.constants import QITemplates, GREY_ROLL, FINISHED_ROLL
 from desar_manufacturing.repositories.work_order_repository import WorkOrderRepository
 from desar_manufacturing.repositories.stock_entry_repository import StockEntryRepository
+from desar_manufacturing.utils.grade_utils import get_final_stage_names
 
 
 @frappe.whitelist()
@@ -94,15 +95,15 @@ def create_boms_from_design(design_master: str) -> dict:
     return BOMService.create_all_boms(design_master)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["GET"])
 def get_grade_summary(design_no: str = None, article: str = None) -> dict:
     filters = {"roll_status": "Completed"}
     if design_no: filters["design_no"] = design_no
     if article: filters["article_name"] = article
-    tickets = frappe.get_all("Roll Ticket", filters=filters, fields=["cutted_qty_a", "cutted_qty_b", "cutted_qty_c"])
-    total_a = sum(flt(t.cutted_qty_a) for t in tickets)
-    total_b = sum(flt(t.cutted_qty_b) for t in tickets)
-    total_c = sum(flt(t.cutted_qty_c) for t in tickets)
+    tickets = frappe.get_all("Roll Ticket", filters=filters, pluck="name")
+    final_stages = get_final_stage_names()
+    grades = _sum_final_grades(tickets, final_stages) if tickets and final_stages else {"A": 0, "B": 0, "C": 0}
+    total_a, total_b, total_c = grades["A"], grades["B"], grades["C"]
     grand = total_a + total_b + total_c
     return {
         "total_rolls": len(tickets), "grade_a": total_a, "grade_b": total_b, "grade_c": total_c, "grand_total": grand,
@@ -110,6 +111,19 @@ def get_grade_summary(design_no: str = None, article: str = None) -> dict:
         "pct_b": round(total_b / grand * 100, 1) if grand else 0,
         "pct_c": round(total_c / grand * 100, 1) if grand else 0,
     }
+
+
+def _sum_final_grades(ticket_names: list, final_stages: list) -> dict:
+    rows = frappe.get_all(
+        "DESAR Roll Ticket Stage Grade",
+        filters={"parent": ["in", ticket_names], "stage_name": ["in", final_stages]},
+        fields=["grade_code", "qty"],
+    )
+    totals = {"A": 0, "B": 0, "C": 0}
+    for r in rows:
+        if r.grade_code in totals:
+            totals[r.grade_code] += flt(r.qty)
+    return totals
 
 
 def _find_roll_ticket_for_qi_creation(se_name: str, batch_no: str, stage: str) -> str:
@@ -307,6 +321,8 @@ def get_job_card_actions(work_order: str) -> dict:
 
 @frappe.whitelist()
 def finish_work_order(work_order: str) -> dict:
+    from desar_manufacturing.api.production_order import MUTATE_ROLES
+    frappe.only_for(MUTATE_ROLES)
     if not work_order: frappe.throw(_("Work Order required"))
     wo = frappe.get_doc("Work Order", work_order)
     if wo.docstatus != 1: frappe.throw(_("Work Order must be submitted"))
@@ -333,6 +349,8 @@ def finish_work_order(work_order: str) -> dict:
 
 @frappe.whitelist()
 def create_transfer_se(work_order: str) -> dict:
+    from desar_manufacturing.api.production_order import MUTATE_ROLES
+    frappe.only_for(MUTATE_ROLES)
     if not work_order: frappe.throw(_("Work Order required"))
     wo = frappe.get_doc("Work Order", work_order)
     if wo.docstatus != 1: frappe.throw(_("Work Order must be submitted"))

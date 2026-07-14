@@ -7,6 +7,7 @@
  "field_order": [
   "roll_no",
   "beam_roll_batch",
+  "planned_qty",
   "roll_status",
   "col_break_1",
   "roll_ticket",
@@ -41,7 +42,16 @@
    "in_list_view": 1,
    "label": "Beam Roll Batch",
    "options": "Batch",
+   "search_index": 1,
    "width": "120px"
+  },
+  {
+   "fieldname": "planned_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Planned Qty (pcs)",
+   "read_only": 1,
+   "width": "110px"
   },
   {
    "fieldname": "roll_status",

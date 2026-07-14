@@ -348,30 +348,28 @@ def _test_repack_build_items():
 
     from desar_manufacturing.services.repack_service import RepackService
 
-    # T4.1 — standard 4-row Repack
+    # T4.1 — standard 3-row Repack (source + A + B; scrap qty is in `total`, no output row)
     items = RepackService._build_items(
         item_a="Shemagh-VIC-60-A",
         item_b="Shemagh-VIC-60-B",
-        wh_src="S", wh_a="A", wh_b="B", wh_sc="SC",
-        total=50, grade_a=42, grade_b=6, grade_c=2,
+        wh_src="S", wh_a="A", wh_b="B",
+        total=50, grade_a=42, grade_b=6,
         val_rate=100.0,
     )
-    _check("T4.1 4 rows built (source + A + B + scrap)", len(items) == 4, f"Got: {len(items)}")
+    _check("T4.1 3 rows built (source + A + B, no scrap row)", len(items) == 3, f"Got: {len(items)}")
     _check("T4.2 Source qty = total (50)", items[0]["qty"] == 50)
     _check("T4.3 Grade A qty = 42", items[1]["qty"] == 42)
     _check("T4.4 Grade B qty = 6", items[2]["qty"] == 6)
-    _check("T4.5 Scrap qty = 2", items[3]["qty"] == 2)
     _check("T4.6 Grade B rate = 60%", abs(items[2]["basic_rate"] - 60.0) < 0.01)
-    _check("T4.7 Scrap rate = 5%", abs(items[3]["basic_rate"] - 5.0) < 0.01)
 
     # T4.2 — no grade B
     items2 = RepackService._build_items(
         item_a="Shemagh-VIC-60-A", item_b=None,
-        wh_src="S", wh_a="A", wh_b="B", wh_sc="SC",
-        total=50, grade_a=48, grade_b=0, grade_c=2,
+        wh_src="S", wh_a="A", wh_b="B",
+        total=50, grade_a=48, grade_b=0,
         val_rate=100.0,
     )
-    _check("T4.8 Grade B row skipped when qty=0", len(items2) == 3)
+    _check("T4.8 Grade B row skipped when qty=0", len(items2) == 2)
 
 
 def _test_qi_creation_api():

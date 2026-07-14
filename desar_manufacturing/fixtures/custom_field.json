@@ -33,6 +33,7 @@
   "label": "DESAR Stage Name",
   "insert_after": "custom_roll_ticket",
   "read_only": 1,
+  "search_index": 1,
   "description": "Stage name from Design Master Stage Configuration. Set at QI creation time."
  },
  {

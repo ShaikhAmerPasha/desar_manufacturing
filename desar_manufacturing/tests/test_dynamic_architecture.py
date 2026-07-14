@@ -470,6 +470,38 @@ class TestBackwardCompatibility(unittest.TestCase):
         # This tests the graceful fallback
         self.assertIsInstance(items, list)
 
+    def test_repack_service_dynamic_mode_skips_scrap_output(self):
+        """
+        RepackService._build_items_dynamic must never produce an output row for a
+        grade flagged is_scrap in Grade Configuration — scrap qty is still counted
+        in `total` (consumed from source) but carries no stock value.
+        """
+        from desar_manufacturing.services.repack_service import RepackService
+
+        grade_config = [
+            frappe._dict({"grade_code": "A", "is_scrap": 0, "item_suffix": "", "valuation_pct": 100, "target_warehouse": "", "scrap_item": ""}),
+            frappe._dict({"grade_code": "C", "is_scrap": 1, "item_suffix": "", "valuation_pct": 5, "target_warehouse": "Scrap Yard - ST", "scrap_item": "Shemagh Scrap"}),
+        ]
+        mock_qi = type("MockQI", (), {
+            "reference_type": "",
+            "reference_name": "",
+            "item_code": "Grey Roll",
+            "get": lambda self, k, d=None: {
+                "custom_desar_grade_readings": [
+                    {"grade_code": "A", "qty": 42},
+                    {"grade_code": "C", "qty": 2},
+                ],
+            }.get(k, d),
+        })()
+
+        items, total = RepackService._build_items_dynamic.__func__(
+            RepackService, mock_qi, grade_config, "Cutting and Packing Floor - ST"
+        )
+
+        self.assertEqual(total, 44)  # scrap qty still counted, consumed from source
+        self.assertNotIn("Scrap Yard - ST", [i.get("t_warehouse") for i in items])
+        self.assertNotIn("Shemagh Scrap", [i.get("item_code") for i in items])
+
     def test_settings_manager_grade_config_returns_empty_when_not_setup(self):
         """
         When Grade Configuration is not filled in DESAR Settings,
@@ -487,15 +519,6 @@ class TestBackwardCompatibility(unittest.TestCase):
         from desar_manufacturing.api.manufacturing import get_stage_configuration
         result = get_stage_configuration("NONEXISTENT-DESIGN-ZZZZZ")
         self.assertEqual(result, [])
-
-    def test_existing_50_tests_still_pass(self):
-        """
-        Verify existing test count is still >= 50.
-        This test passes if the test suite imports without error.
-        """
-        from desar_manufacturing.tests import test_roll_ticket_service
-        from desar_manufacturing.tests import test_validation_utils
-        self.assertTrue(True)  # Import succeeded
 
 
 if __name__ == "__main__":

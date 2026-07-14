@@ -20,6 +20,7 @@ from typing import Optional
 from desar_manufacturing.constants import (
     WARPING_BEAM, GREY_ROLL, FINISHED_ROLL
 )
+from desar_manufacturing.utils.validation_utils import resolve_by_keyword
 
 
 class BOMService:
@@ -137,7 +138,6 @@ class BOMService:
                     message=frappe.get_traceback()
                 )
 
-        frappe.db.commit()
         if results:
             frappe.msgprint(
                 _("Created {0} BOM(s) in Draft: {1}").format(
@@ -149,16 +149,30 @@ class BOMService:
 
     @classmethod
     def _get_source_wh_for_stage(cls, stage_lower: str) -> str:
-        """Get source warehouse for the input item of a stage."""
+        """
+        Get source warehouse for the input item of a stage, from DESAR
+        Settings. No hardcoded warehouse-name fallback — a missing setting
+        must fail loudly rather than silently point at a warehouse name
+        that may not exist in this install.
+        """
+        field = None
         if "weav" in stage_lower:
-            return frappe.db.get_single_value("DESAR Settings", "warping_wip_warehouse") or "Warping WIP - ST"
+            field = "warping_wip_warehouse"
         elif "dye" in stage_lower:
-            return frappe.db.get_single_value("DESAR Settings", "grey_roll_warehouse") or "Grey Roll Store - ST"
+            field = "grey_roll_warehouse"
         elif "finish" in stage_lower:
-            return frappe.db.get_single_value("DESAR Settings", "finishing_wip_warehouse") or "Finishing WIP - ST"
+            field = "finishing_wip_warehouse"
         elif "pack" in stage_lower:
-            return frappe.db.get_single_value("DESAR Settings", "finished_roll_warehouse") or "Finished Roll Store - ST"
-        return ""
+            field = "finished_roll_warehouse"
+        if not field:
+            return ""
+
+        warehouse = frappe.db.get_single_value("DESAR Settings", field)
+        if not warehouse:
+            frappe.throw(_(
+                "DESAR Settings: {0} is not configured. Set it before creating BOMs."
+            ).format(frappe.unscrub(field)))
+        return warehouse
 
     @classmethod
     def _get_yarn_items(cls, dm) -> list:
@@ -352,32 +366,44 @@ class BOMService:
             "source_warehouse": warehouse,
         }
 
+    #: Keyword → Workstation name, used only when Stage Operations has no
+    #: workstation defined for a stage and no matching Operation record
+    #: exists. Legacy convenience default, not a config source of truth —
+    #: define Stage Operations explicitly to override.
+    _DEFAULT_WORKSTATION_BY_KEYWORD = {
+        "warp":   "Warping Machine",
+        "weav":   "Loom 62",
+        "loom":   "Loom 62",
+        "dye":    "Dyeing Machine",
+        "finish": "Finishing Machine",
+        "wash":   "Finishing Machine",
+        "pack":   "Cutting Table",
+        "cut":    "Cutting Table",
+    }
+
     @classmethod
     def _get_default_workstation(cls, stage_name: str) -> str:
         """
-        Get a default workstation for a stage when none is defined
-        in the Stage Operations child table.
-        Tries to find an existing Operation with same name first.
-        Falls back to first available workstation.
+        Get a default workstation for a stage when none is defined in the
+        Stage Operations child table. Tries an existing Operation with the
+        same name first, then a keyword default — and throws rather than
+        guessing "first workstation in the database" when neither exists,
+        since that guess is nondeterministic and can silently route work
+        to the wrong machine.
         """
-        stage_lower = stage_name.lower()
-        # Try to find operation matching stage name
         op = frappe.db.get_value("Operation", {"name": stage_name}, "workstation")
         if op:
             return op
-        # Keyword-based defaults
-        if "warp" in stage_lower:
-            return "Warping Machine"
-        elif "weav" in stage_lower or "loom" in stage_lower:
-            return "Loom 62"
-        elif "dye" in stage_lower:
-            return "Dyeing Machine"
-        elif "finish" in stage_lower or "wash" in stage_lower:
-            return "Finishing Machine"
-        elif "pack" in stage_lower or "cut" in stage_lower:
-            return "Cutting Table"
-        # Last resort: first workstation in DB
-        return frappe.db.get_value("Workstation", {}, "name") or ""
+
+        stage_lower = stage_name.lower()
+        workstation = resolve_by_keyword(stage_lower, cls._DEFAULT_WORKSTATION_BY_KEYWORD)
+        if workstation and frappe.db.exists("Workstation", workstation):
+            return workstation
+
+        frappe.throw(_(
+            "No workstation configured for stage {0}. Add one in this stage's "
+            "Operations table, or create an Operation named {0} with a workstation."
+        ).format(stage_name))
 
     @classmethod
     def _insert_and_submit_bom(cls, data: dict) -> str:
