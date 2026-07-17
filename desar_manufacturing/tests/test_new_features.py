@@ -261,6 +261,90 @@ class TestGradeAdjustmentIntegration(unittest.TestCase):
             self.skipTest("frappe not available")
 
 
+class TestValidateOnSave(unittest.TestCase):
+    """
+    validate() now runs the same grade-adjustment reconciliation check that
+    before_submit always ran — but on every Save, not just Submit. Calls the
+    real validate(doc, method); is_final_stage/get_design_master_from_qi/
+    get_stage_grades_from_rt are patched since they need real Design
+    Master/Roll Ticket data this unit test doesn't set up.
+    """
+
+    class _Row:
+        def __init__(self, **kwargs):
+            self._data = kwargs
+
+        def get(self, key, default=None):
+            return self._data.get(key, default)
+
+    class _MockDoc:
+        def __init__(self, readings, adjustments=None):
+            self._data = {
+                "custom_desar_grade_readings": readings,
+                "custom_desar_grade_adjustments": adjustments or [],
+                "custom_desar_stage_name": "Packing",
+                "custom_roll_ticket": "RT-TEST-0001",
+            }
+
+        def get(self, key, default=None):
+            return self._data.get(key, default)
+
+    def test_empty_readings_skips_validation(self):
+        try:
+            import frappe
+            from desar_manufacturing.events.quality_inspection import validate
+            validate(self._MockDoc([]), "validate")
+        except ImportError:
+            self.skipTest("frappe not available")
+
+    def test_zero_total_skips_validation(self):
+        try:
+            import frappe
+            from desar_manufacturing.events.quality_inspection import validate
+            readings = [self._Row(grade_code="A", qty=0)]
+            validate(self._MockDoc(readings), "validate")
+        except ImportError:
+            self.skipTest("frappe not available")
+
+    def test_mismatch_throws_on_save_not_just_submit(self):
+        try:
+            import frappe
+            if not frappe.db:
+                self.skipTest("frappe site context not initialized — run via bench run-tests")
+            from unittest.mock import patch
+            import desar_manufacturing.events.quality_inspection as qi_events
+
+            readings = [self._Row(grade_code="A", qty=5)]
+            doc = self._MockDoc(readings)
+
+            with patch.object(qi_events, "is_final_stage", return_value=True), \
+                 patch.object(qi_events, "get_design_master_from_qi", return_value="DM-TEST"), \
+                 patch.object(qi_events, "get_stage_grades_from_rt", return_value={"A": 3}):
+                with self.assertRaises(frappe.ValidationError):
+                    qi_events.validate(doc, "validate")
+        except ImportError:
+            self.skipTest("frappe not available")
+
+    def test_reconciled_adjustment_passes_on_save(self):
+        try:
+            import frappe
+            if not frappe.db:
+                self.skipTest("frappe site context not initialized — run via bench run-tests")
+            from unittest.mock import patch
+            import desar_manufacturing.events.quality_inspection as qi_events
+
+            readings = [self._Row(grade_code="A", qty=5)]
+            adjustments = [self._Row(from_grade="B", to_grade="A", qty=2, idx=1)]
+            doc = self._MockDoc(readings, adjustments)
+
+            with patch.object(qi_events, "is_final_stage", return_value=True), \
+                 patch.object(qi_events, "get_design_master_from_qi", return_value="DM-TEST"), \
+                 patch.object(qi_events, "get_stage_grades_from_rt", return_value={"A": 3, "B": 2}):
+                qi_events.validate(doc, "validate")  # should not raise
+        except ImportError:
+            self.skipTest("frappe not available")
+
+
 class TestWorkspaceAPIIntegration(unittest.TestCase):
     """Integration tests for Production Workspace API in bench."""
 

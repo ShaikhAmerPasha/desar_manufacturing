@@ -82,6 +82,7 @@ class RepackService:
                     frappe.utils.get_link_to_form("Stock Entry", se.name)
                 ),
             )
+            cls._link_repack_se_to_roll_chain(qi_doc, se.name)
             return se.name
 
         except Exception:
@@ -94,6 +95,27 @@ class RepackService:
                 indicator="orange",
             )
             return None
+
+    @classmethod
+    def _link_repack_se_to_roll_chain(cls, qi_doc, se_name: str):
+        """
+        Record the Repack SE on its DESAR Roll Chain row immediately, so it's
+        still findable from the Production Order if the user navigates away
+        before submitting it (it stays in Draft otherwise). Best-effort —
+        the Repack SE already exists by this point regardless of outcome here.
+        """
+        try:
+            roll_ticket = qi_doc.get("custom_roll_ticket")
+            if not roll_ticket:
+                return
+            row_name = frappe.db.get_value("DESAR Roll Chain", {"roll_ticket": roll_ticket}, "name")
+            if row_name:
+                frappe.db.set_value("DESAR Roll Chain", row_name, "repack_se", se_name)
+        except Exception:
+            frappe.log_error(
+                title="DESAR: Repack SE linking to Roll Chain failed",
+                message=frappe.get_traceback(),
+            )
 
     # ── Dynamic mode ──────────────────────────────────────────────────────────
 

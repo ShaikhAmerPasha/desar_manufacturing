@@ -12,7 +12,7 @@ from frappe.utils import flt, cint
 from desar_manufacturing.constants import QITemplates, GREY_ROLL, FINISHED_ROLL
 from desar_manufacturing.repositories.work_order_repository import WorkOrderRepository
 from desar_manufacturing.repositories.stock_entry_repository import StockEntryRepository
-from desar_manufacturing.utils.grade_utils import get_final_stage_names
+from desar_manufacturing.utils.grade_utils import get_final_stage_names, get_stage_grades_from_rt
 
 # Any authenticated DESAR desk role may read configuration/summary data;
 # only MUTATE_ROLES (production_order.py) may create or change records.
@@ -493,3 +493,10 @@ def check_manufacture_se_exists(work_order: str) -> bool:
     if not work_order: return False
     return bool(frappe.db.exists("Stock Entry",
         {"work_order": work_order, "stock_entry_type": "Manufacture", "docstatus": 1}))
+
+
+@frappe.whitelist()
+def get_finishing_grade_baseline(roll_ticket: str) -> dict:
+    frappe.only_for(READ_ROLES)
+    if not roll_ticket: return {}
+    return get_stage_grades_from_rt(roll_ticket, "Finish")
