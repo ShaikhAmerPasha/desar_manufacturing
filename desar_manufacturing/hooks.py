@@ -34,6 +34,7 @@ fixtures = [
             "BOM-custom_article_name",
             "BOM-custom_design_master",
             "Job Card-custom_assigned_to",
+            "Production Plan-custom_production_buffer_pct",
         ]]],
     },
 ]
@@ -68,6 +69,10 @@ doc_events = {
 doctype_js = {
 	"Production Plan": "public/js/production_plan.js",
 	"Quality Inspection": "public/js/quality_inspection.js"
+}
+
+override_doctype_class = {
+	"Production Plan": "desar_manufacturing.overrides.production_plan.CustomProductionPlan",
 }
 
 scheduler_events = {

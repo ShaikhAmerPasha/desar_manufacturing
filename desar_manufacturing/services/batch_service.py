@@ -42,6 +42,7 @@ def get_batch_from_stock_entry(se) -> str:
 				"voucher_no":   se.name,
 				"voucher_type": "Stock Entry",
 				"actual_qty":   [">", 0],
+				"is_cancelled": 0,
 			},
 			["batch_no", "item_code"],
 			as_dict=True,

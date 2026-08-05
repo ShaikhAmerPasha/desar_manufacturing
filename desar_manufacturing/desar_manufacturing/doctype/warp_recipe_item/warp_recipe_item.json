@@ -4,12 +4,13 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "istable": 1,
- "field_order": ["yarn_item","yarn_count","color","ends","qty_kg"],
+ "field_order": ["yarn_item","yarn_count","color","ends","rate_kg_per_piece","qty_kg"],
  "fields": [
   {"fieldname":"yarn_item","fieldtype":"Link","label":"Yarn Item","options":"Item","reqd":1,"in_list_view":1},
   {"fieldname":"yarn_count","fieldtype":"Data","label":"Yarn Count","in_list_view":1,"description":"e.g. 34/2, 100/2"},
   {"fieldname":"color","fieldtype":"Data","label":"Color","in_list_view":1},
   {"fieldname":"ends","fieldtype":"Int","label":"Ends","in_list_view":1},
+  {"fieldname":"rate_kg_per_piece","fieldtype":"Float","label":"Rate (Kg/Piece)","in_list_view":1,"description":"Optional. If set, Qty (Kg) is auto-computed as Rate × parent's Planned Qty."},
   {"fieldname":"qty_kg","fieldtype":"Float","label":"Qty (Kg)","reqd":1,"in_list_view":1}
  ],
  "modified": "2026-05-01 00:00:00.000000",

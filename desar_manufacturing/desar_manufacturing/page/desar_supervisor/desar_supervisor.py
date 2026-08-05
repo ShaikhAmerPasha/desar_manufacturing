@@ -5,6 +5,8 @@ Shows all active production orders with stage completion status.
 import frappe
 from frappe.utils import today
 
+from desar_manufacturing.constants import SUPERVISOR_ROLES
+
 
 @frappe.whitelist()
 def get_production_status():
@@ -12,6 +14,7 @@ def get_production_status():
     Returns active production orders grouped by Production Plan.
     Each group shows all 4 WOs with their status.
     """
+    frappe.only_for(SUPERVISOR_ROLES)
     # Get active Work Orders from last 30 days
     wos = frappe.get_all(
         "Work Order",

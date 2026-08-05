@@ -12,6 +12,8 @@ from frappe import _
 from frappe.utils import cint, nowdate
 
 from desar_manufacturing.services import batch_service, stock_entry_service, wo_split_helpers as wo
+from desar_manufacturing.utils.doc_utils import is_submitted
+from desar_manufacturing.utils.batch_utils import get_batch_from_row
 
 
 # ── Warping ───────────────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ def start_warping(production_order: str) -> dict:
 	quantities before issuing to the warping machine.
 	"""
 	po = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 
 	if po.warping_status != "Not Started":
 		frappe.throw(_("Warping is already {0}.").format(po.warping_status))
@@ -61,12 +64,13 @@ def complete_warping(production_order: str) -> dict:
 	Creates Manufacture SE auto and captures beam batch.
 	"""
 	po = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 
 	if po.warping_status != "In Progress":
 		frappe.throw(_("Start Warping first."))
 	if not po.warping_transfer_se:
 		frappe.throw(_("No Transfer SE found."))
-	if not _is_submitted("Stock Entry", po.warping_transfer_se):
+	if not is_submitted("Stock Entry", po.warping_transfer_se):
 		frappe.throw(_("Submit the Warping Transfer SE first (store worker must approve)."))
 	if po.warping_manufacture_se:
 		frappe.throw(_("Warping already completed."))
@@ -96,6 +100,7 @@ def split_beam(production_order: str, rows: list) -> dict:
 	po.total_qty. Roll count is derived from the rows, never guessed.
 	"""
 	po = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 
 	if po.warping_status != "Completed":
 		frappe.throw(_("Complete Warping before splitting beam."))
@@ -312,13 +317,7 @@ def _create_repack_se(
 	batches = []
 	for row in se.items:
 		if row.t_warehouse and row.item_code == "Beam Roll":
-			b = row.batch_no
-			if not b and row.get("serial_and_batch_bundle"):
-				b = frappe.db.get_value(
-					"Serial and Batch Entry",
-					{"parent": row.serial_and_batch_bundle},
-					"batch_no",
-				) or ""
+			b = get_batch_from_row(row)
 			if b:
 				batches.append(b)
 
@@ -342,5 +341,6 @@ def _configure_warping_wo(work_order, po) -> None:
 	work_order.custom_article_name  = po.article_name
 
 
-def _is_submitted(doctype: str, name: str) -> bool:
-	return frappe.db.get_value(doctype, name, "docstatus") == 1
+def _guard_po_submitted(po) -> None:
+	if po.docstatus != 1:
+		frappe.throw(_("Production Order {0} is not submitted.").format(po.name))

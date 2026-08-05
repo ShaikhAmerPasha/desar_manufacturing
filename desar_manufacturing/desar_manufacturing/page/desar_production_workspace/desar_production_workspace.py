@@ -6,6 +6,8 @@ import frappe
 from frappe import _
 from frappe.utils import today, add_days
 
+from desar_manufacturing.constants import ALL_DESAR_ROLES, SUPERVISOR_ROLES, QC_ROLES
+
 
 @frappe.whitelist()
 def get_production_orders():
@@ -14,6 +16,7 @@ def get_production_orders():
     Each group has all WOs with their current status.
     Includes today's and overdue orders.
     """
+    frappe.only_for(ALL_DESAR_ROLES)
     # Get active Work Orders
     wos = frappe.get_all(
         "Work Order",
@@ -109,6 +112,7 @@ def complete_stage(work_order):
     Complete all job cards for a Work Order and finish it.
     Used from the Production Workspace.
     """
+    frappe.only_for(SUPERVISOR_ROLES)
     wo = frappe.get_doc("Work Order", work_order)
 
     # Complete all open job cards
@@ -137,6 +141,7 @@ def get_pending_inspections():
     Returns pending QI opportunities — WOs completed but no QI yet.
     Used by QC Inspector view.
     """
+    frappe.only_for(QC_ROLES)
     # Find completed WOs with qi_required stages and no QI
     completed_wos = frappe.get_all(
         "Work Order",

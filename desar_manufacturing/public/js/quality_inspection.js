@@ -2,6 +2,16 @@
 
 frappe.ui.form.on("Quality Inspection", {
 	refresh(frm) {
+		// DESAR Roll Chain (child table on DESAR Production Order) links back to
+		// this QI via grey_roll_qi/finished_roll_qi/packing_qi — Frappe's generic
+		// "linked with submitted documents" check finds that Link and forces a
+		// cascade cancel of the whole Production Order just to cancel one QI.
+		// Same fix ERPNext itself uses for Sales Invoice/Payment Entry/Journal
+		// Entry against their own submittable links — this only affects the
+		// confirmation dialog, not permissions or the actual cancel/amend logic
+		// (events/quality_inspection.py::on_cancel already reverts Roll Ticket/
+		// Roll Chain state correctly for a standalone QI cancel).
+		frm.ignore_doctypes_on_cancel_all = ["DESAR Production Order"];
 		_desar_fetch_baseline(frm, () => _desar_prefill_if_fresh(frm));
 	},
 

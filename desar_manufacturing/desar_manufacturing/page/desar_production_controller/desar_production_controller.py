@@ -14,6 +14,14 @@ import frappe
 from frappe import _
 from frappe.utils import flt, cint
 
+from desar_manufacturing.constants import (
+    ALL_DESAR_ROLES,
+    SUPERVISOR_ROLES,
+    JOB_CARD_ROLES,
+    QC_ROLES,
+    STORE_ROLES,
+)
+
 
 @frappe.whitelist()
 def get_orders():
@@ -21,6 +29,7 @@ def get_orders():
     Returns active production orders for the controller list view.
     Grouped by Production Plan.
     """
+    frappe.only_for(ALL_DESAR_ROLES)
     role = _get_desar_role()
 
     wos = frappe.get_all(
@@ -83,6 +92,7 @@ def get_order_detail(production_plan: str):
     Returns full detail for one production order.
     Includes stages, job cards, stock entries, QIs.
     """
+    frappe.only_for(ALL_DESAR_ROLES)
     if not production_plan:
         frappe.throw(_("Production Plan required"))
 
@@ -145,7 +155,7 @@ def start_stage(production_plan: str, work_order: str):
     Supervisor clicks Start Stage.
     Submits the Work Order and auto-fills warehouses via validate hook.
     """
-    frappe.only_for(["System Manager", "Manufacturing Manager", "DESAR Supervisor"])
+    frappe.only_for(SUPERVISOR_ROLES)
 
     wo = frappe.get_doc("Work Order", work_order)
     if wo.docstatus == 1:
@@ -180,6 +190,7 @@ def get_stage_job_cards(work_order: str):
     For operators: only job cards assigned to current user.
     For supervisor/QC: all job cards.
     """
+    frappe.only_for(ALL_DESAR_ROLES)
     if not work_order:
         return []
 
@@ -202,7 +213,7 @@ def get_stage_job_cards(work_order: str):
 @frappe.whitelist()
 def assign_job_card(job_card: str, assign_to: str):
     """Supervisor assigns a job card to a specific user."""
-    frappe.only_for(["System Manager", "Manufacturing Manager", "DESAR Supervisor"])
+    frappe.only_for(SUPERVISOR_ROLES)
     frappe.db.set_value("Job Card", job_card, "custom_assigned_to", assign_to)
     frappe.db.commit()
     return {"status": "ok"}
@@ -211,6 +222,7 @@ def assign_job_card(job_card: str, assign_to: str):
 @frappe.whitelist()
 def get_workers():
     """Returns list of users with DESAR Operator role for assignment."""
+    frappe.only_for(SUPERVISOR_ROLES)
     users = frappe.get_all(
         "Has Role",
         filters={"role": "DESAR Operator", "parenttype": "User"},
@@ -237,6 +249,14 @@ def _get_desar_role() -> str:
     elif "DESAR Store Manager" in user_roles:
         return "store"
     return "supervisor"  # Default for Administrator
+
+
+def _guard_job_card_owner(jc) -> None:
+    """Block a non-supervisor from starting/completing another user's Job Card."""
+    if _get_desar_role() == "supervisor":
+        return
+    if jc.custom_assigned_to and jc.custom_assigned_to != frappe.session.user:
+        frappe.throw(_("Job Card {0} is assigned to another user").format(jc.name))
 
 
 def _get_stage_name(wo: dict) -> str:
@@ -407,6 +427,7 @@ def get_my_job_cards() -> list:
     Returns job cards assigned to current user.
     Includes WO action states (can_transfer, can_finish).
     """
+    frappe.only_for(ALL_DESAR_ROLES)
     user = frappe.session.user
     jcs = frappe.get_all(
         "Job Card",
@@ -466,7 +487,9 @@ def get_my_job_cards() -> list:
 @frappe.whitelist()
 def start_job_card(job_card: str) -> dict:
     """Start a Job Card — sets status to Work In Progress."""
+    frappe.only_for(JOB_CARD_ROLES)
     jc = frappe.get_doc("Job Card", job_card)
+    _guard_job_card_owner(jc)
     if jc.status == "Work In Progress":
         return {"status": "already_started"}
 
@@ -483,7 +506,9 @@ def start_job_card(job_card: str) -> dict:
 @frappe.whitelist()
 def complete_job_card(job_card: str) -> dict:
     """Complete and submit a Job Card."""
+    frappe.only_for(JOB_CARD_ROLES)
     jc = frappe.get_doc("Job Card", job_card)
+    _guard_job_card_owner(jc)
     if jc.docstatus == 1:
         return {"status": "already_done"}
 
@@ -506,6 +531,7 @@ def get_pending_inspections() -> list:
     Returns list of WOs that have Manufacture SE but no QI yet.
     For QC Inspector view.
     """
+    frappe.only_for(QC_ROLES)
     # Get all submitted WOs with Manufacture SE
     wos = frappe.get_all(
         "Work Order",
@@ -564,6 +590,7 @@ def get_pending_repack() -> list:
     Returns draft Repack SEs for Store Manager.
     Shows grade quantities per SE.
     """
+    frappe.only_for(STORE_ROLES)
     ses = frappe.get_all(
         "Stock Entry",
         filters={"stock_entry_type": "Repack", "docstatus": 0},

@@ -1,7 +1,7 @@
 {
  "actions": [],
  "autoname": "naming_series:",
- "creation": "2026-05-01 00:00:00.000000",
+ "creation": "2026-05-01 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -19,17 +19,21 @@
   "finish_chem_qty",
   "wash_agent_qty",
   "flower_chem_qty",
+  "chemical_materials_qty_kg",
   "section_packing",
   "pieces_per_roll",
   "branded_box_item",
   "label_item",
+  "sticker_item",
   "section_bom",
   "bom_level_1",
   "bom_level_2",
   "bom_level_3",
   "bom_level_4",
   "section_status",
-  "is_active"
+  "is_active",
+  "section_stage_config",
+  "stage_configuration"
  ],
  "fields": [
   {
@@ -40,30 +44,30 @@
    "set_only_once": 1
   },
   {
+   "bold": 1,
    "fieldname": "design_no",
    "fieldtype": "Data",
-   "label": "Design No.",
-   "reqd": 1,
    "in_list_view": 1,
-   "bold": 1
+   "label": "Design No.",
+   "reqd": 1
   },
   {
+   "bold": 1,
    "fieldname": "article_name",
    "fieldtype": "Data",
-   "label": "Article Name",
-   "reqd": 1,
    "in_list_view": 1,
-   "bold": 1
+   "label": "Article Name",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_1",
    "fieldtype": "Column Break"
   },
   {
+   "description": "Comma separated: 55,58,60,62",
    "fieldname": "sizes",
    "fieldtype": "Data",
-   "label": "Available Sizes",
-   "description": "Comma separated: 55,58,60,62"
+   "label": "Available Sizes"
   },
   {
    "fieldname": "default_size",
@@ -84,6 +88,7 @@
   {
    "fieldname": "section_weft",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Weft Recipe"
   },
   {
@@ -95,25 +100,31 @@
   {
    "fieldname": "section_chemical",
    "fieldtype": "Section Break",
-   "label": "Chemical Consumption (per roll)"
+   "label": "Chemical Consumption"
   },
   {
+   "default": "5",
    "fieldname": "finish_chem_qty",
    "fieldtype": "Float",
-   "label": "Finishing Chemical (Litre)",
-   "default": "5"
+   "label": "Finishing Chemical (Litre)"
   },
   {
+   "default": "3",
    "fieldname": "wash_agent_qty",
    "fieldtype": "Float",
-   "label": "Washing Agent (Litre)",
-   "default": "3"
+   "label": "Washing Agent (Litre)"
   },
   {
+   "default": "2",
    "fieldname": "flower_chem_qty",
    "fieldtype": "Float",
-   "label": "Flower Chemical (Litre)",
-   "default": "2"
+   "label": "Flower Chemical (Litre)"
+  },
+  {
+   "default": "0",
+   "fieldname": "chemical_materials_qty_kg",
+   "fieldtype": "Float",
+   "label": "Chemical Materials (Kg)"
   },
   {
    "fieldname": "section_packing",
@@ -121,10 +132,10 @@
    "label": "Packing"
   },
   {
+   "default": "50",
    "fieldname": "pieces_per_roll",
    "fieldtype": "Int",
-   "label": "Expected Pieces per Roll",
-   "default": "50"
+   "label": "Expected Pieces per Roll"
   },
   {
    "fieldname": "branded_box_item",
@@ -139,17 +150,23 @@
    "options": "Item"
   },
   {
-   "fieldname": "section_stage_config",
-   "fieldtype": "Section Break",
-   "label": "Production Stage Configuration",
-   "description": "Define all production stages for this design. Each row = one stage. System reads this to show QI buttons, create Roll Tickets, trigger Repack, and auto-create BOMs. Adding a row here adds a new stage with zero code change."
+   "fieldname": "sticker_item",
+   "fieldtype": "Link",
+   "label": "Sticker Item",
+   "options": "Item"
   },
   {
+   "description": "Define all production stages for this design. Each row = one stage. System reads this to show QI buttons, create Roll Tickets, trigger Repack, and auto-create BOMs. Adding a row here adds a new stage with zero code change.",
+   "fieldname": "section_stage_config",
+   "fieldtype": "Section Break",
+   "label": "Production Stage Configuration"
+  },
+  {
+   "description": "Each row = one production stage in sequence order.",
    "fieldname": "stage_configuration",
    "fieldtype": "Table",
    "label": "Stage Configuration",
-   "options": "DESAR Stage Configuration",
-   "description": "Each row = one production stage in sequence order."
+   "options": "DESAR Stage Configuration"
   },
   {
    "fieldname": "section_bom",
@@ -189,13 +206,14 @@
    "fieldtype": "Section Break"
   },
   {
+   "default": "1",
    "fieldname": "is_active",
    "fieldtype": "Check",
-   "label": "Active",
-   "default": "1"
+   "label": "Active"
   }
  ],
- "modified": "2026-05-01 00:00:00.000000",
+ "links": [],
+ "modified": "2026-08-05 16:32:30.774765",
  "modified_by": "Administrator",
  "module": "Desar Manufacturing",
  "name": "Design Master",
@@ -216,16 +234,17 @@
   },
   {
    "create": 1,
-   "delete": 0,
    "read": 1,
    "report": 1,
    "role": "Manufacturing User",
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "design_no,article_name",
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "article_name",
  "track_changes": 1
 }

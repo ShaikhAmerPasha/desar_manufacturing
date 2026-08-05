@@ -101,6 +101,8 @@ def on_cancel(doc, method):
     from desar_manufacturing.services.roll_ticket_service import RollTicketService
     from desar_manufacturing.services.roll_service import revert_qi_reference
 
+    _guard_repack_se_not_submitted(doc)
+
     RollTicketService.revert_from_qi_cancel(doc)
     revert_qi_reference(doc.name)
 
@@ -111,6 +113,21 @@ def on_cancel(doc, method):
                 "from it, review and cancel it manually — it was not reversed automatically."
             ),
             alert=True, indicator="orange",
+        )
+
+
+def _guard_repack_se_not_submitted(doc):
+    """
+    Block cancelling a Final Packing QI while its auto-created Repack SE is
+    still submitted — reversing the QI without also reversing that SE would
+    leave a live Repack of stock produced under a now-cancelled inspection.
+    """
+    repack_se = frappe.db.get_value(
+        "Stock Entry", {"custom_source_qi": doc.name, "docstatus": 1}, "name"
+    )
+    if repack_se:
+        frappe.throw(
+            _("Cancel Repack Stock Entry {0} first — it was created from this Quality Inspection.").format(repack_se)
         )
 
 

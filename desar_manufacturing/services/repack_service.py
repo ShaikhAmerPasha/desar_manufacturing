@@ -50,7 +50,12 @@ class RepackService:
             return None
 
         company = SettingsManager.get_company()
-        wh_src = SettingsManager.get_warehouse("cutting_packing_warehouse")
+        # The Packing Work Order's actual output lands in fg_grade_a_warehouse
+        # (events/work_order.py::_get_warehouses_for_stage("pack")) — NOT
+        # cutting_packing_warehouse (a WIP staging warehouse the item is never
+        # placed in). Sourcing from the wrong warehouse means Frappe can't find
+        # a valuation rate there and the whole Stock Entry fails to insert.
+        wh_src = SettingsManager.get_warehouse("fg_grade_a_warehouse")
 
         # ── Choose mode ───────────────────────────────────────────────────
         grade_config = SettingsManager.get_grade_configuration()
@@ -149,10 +154,12 @@ class RepackService:
             return [], 0
 
         items = [{
-            "item_code":   base_item,
-            "s_warehouse": wh_src,
-            "qty":         total,
-            "uom":         "Pcs",
+            "item_code":               base_item,
+            "s_warehouse":             wh_src,
+            "qty":                     total,
+            "uom":                     "Pcs",
+            "set_basic_rate_manually": 1,
+            "basic_rate":              val_rate,
         }]
 
         for reading in grade_readings:
@@ -164,6 +171,11 @@ class RepackService:
             if not grade or grade.is_scrap:
                 # Scrap is disposed, not sold — consumed from source above, no valued output row.
                 continue
+            if not flt(grade.valuation_pct):
+                frappe.throw(_(
+                    "Grade {0} has no Valuation % set in DESAR Grade Configuration. "
+                    "Set it above 0 before repacking — a blank or zero value would value this grade at zero."
+                ).format(grade.grade_code))
 
             item_code = cls._derive_item_with_suffix(base_item, grade.item_suffix) if grade.item_suffix else None
             if not item_code or not frappe.db.exists("Item", item_code):
@@ -270,7 +282,10 @@ class RepackService:
 
         val_rate = StockEntryRepository.get_valuation_rate(item_a, wh_src)
 
-        items = [{"item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": "Pcs"}]
+        items = [{
+            "item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": "Pcs",
+            "set_basic_rate_manually": 1, "basic_rate": val_rate,
+        }]
 
         if grade_a:
             items.append({
@@ -306,7 +321,10 @@ class RepackService:
         Builds legacy A/B items directly without reading from DB.
         `total` already includes any disposed scrap qty consumed from source.
         """
-        items = [{"item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": "Pcs"}]
+        items = [{
+            "item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": "Pcs",
+            "set_basic_rate_manually": 1, "basic_rate": val_rate,
+        }]
 
         if grade_a and item_a:
             items.append({
