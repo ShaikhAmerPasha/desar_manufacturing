@@ -34,6 +34,7 @@ fixtures = [
             "BOM-custom_article_name",
             "BOM-custom_design_master",
             "Job Card-custom_assigned_to",
+            "Production Plan-custom_production_buffer_pct",
         ]]],
     },
 ]
@@ -45,6 +46,7 @@ doc_events = {
         "on_cancel":       "desar_manufacturing.events.stock_entry.on_cancel",
     },
     "Quality Inspection": {
+        "validate":      "desar_manufacturing.events.quality_inspection.validate",
         "before_submit": "desar_manufacturing.events.quality_inspection.before_submit",
         "on_submit":     "desar_manufacturing.events.quality_inspection.on_submit",
         "on_cancel":     "desar_manufacturing.events.quality_inspection.on_cancel",
@@ -65,7 +67,12 @@ doc_events = {
 }
 
 doctype_js = {
-	"Production Plan": "public/js/production_plan.js"
+	"Production Plan": "public/js/production_plan.js",
+	"Quality Inspection": "public/js/quality_inspection.js"
+}
+
+override_doctype_class = {
+	"Production Plan": "desar_manufacturing.overrides.production_plan.CustomProductionPlan",
 }
 
 scheduler_events = {

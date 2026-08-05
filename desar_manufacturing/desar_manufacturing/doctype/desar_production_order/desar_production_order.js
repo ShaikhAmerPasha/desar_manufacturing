@@ -623,6 +623,8 @@ function _add_roll_buttons($c, frm, roll) {
 		_btn($c, "Refresh", "default", () => _refresh_roll(frm, rn));
 	if (roll.packing_status === "In Progress" && roll.packing_qi && _qi_submitted(frm, roll.packing_qi))
 		_btn($c, "Complete Roll", "primary", () => _roll_call(frm, "complete_roll", rn));
+	if (roll.repack_se)
+		_btn($c, "View Repack SE", "default", () => frappe.set_route("Form", "Stock Entry", roll.repack_se));
 }
 
 

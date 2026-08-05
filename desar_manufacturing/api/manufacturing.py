@@ -12,7 +12,11 @@ from frappe.utils import flt, cint
 from desar_manufacturing.constants import QITemplates, GREY_ROLL, FINISHED_ROLL
 from desar_manufacturing.repositories.work_order_repository import WorkOrderRepository
 from desar_manufacturing.repositories.stock_entry_repository import StockEntryRepository
-from desar_manufacturing.utils.grade_utils import get_final_stage_names
+from desar_manufacturing.utils.grade_utils import get_final_stage_names, get_stage_grades_from_rt
+
+# Any authenticated DESAR desk role may read configuration/summary data;
+# only MUTATE_ROLES (production_order.py) may create or change records.
+READ_ROLES = ["System Manager", "DESAR Supervisor", "DESAR Operator", "DESAR QC Inspector", "DESAR Store Manager"]
 
 
 @frappe.whitelist()
@@ -97,6 +101,7 @@ def create_boms_from_design(design_master: str) -> dict:
 
 @frappe.whitelist(methods=["GET"])
 def get_grade_summary(design_no: str = None, article: str = None) -> dict:
+    frappe.only_for(READ_ROLES)
     filters = {"roll_status": "Completed"}
     if design_no: filters["design_no"] = design_no
     if article: filters["article_name"] = article
@@ -253,12 +258,14 @@ def _map_stage_name_to_legacy(stage_name: str) -> str:
 
 @frappe.whitelist()
 def get_grade_configuration() -> list:
+    frappe.only_for(READ_ROLES)
     from desar_manufacturing.config.settings_manager import SettingsManager
     return SettingsManager.get_grade_configuration()
 
 
 @frappe.whitelist()
 def get_stage_configuration(design_master: str) -> list:
+    frappe.only_for(READ_ROLES)
     if not design_master: return []
     return frappe.get_all("DESAR Stage Configuration",
         filters={"parent": design_master, "parenttype": "Design Master"},
@@ -269,6 +276,7 @@ def get_stage_configuration(design_master: str) -> list:
 
 @frappe.whitelist()
 def get_job_card_qi_config(work_order: str) -> dict:
+    frappe.only_for(READ_ROLES)
     if not work_order: return {}
     wo = frappe.get_doc("Work Order", work_order)
     if wo.docstatus != 1: return {}
@@ -289,6 +297,7 @@ def get_job_card_qi_config(work_order: str) -> dict:
 
 @frappe.whitelist()
 def get_job_card_actions(work_order: str) -> dict:
+    frappe.only_for(READ_ROLES)
     if not work_order: return {}
     try:
         wo = frappe.get_doc("Work Order", work_order)
@@ -450,6 +459,7 @@ def _get_input_batch_for_wo(work_order: str, item_code: str) -> str:
 
 @frappe.whitelist()
 def get_bom_design_context(bom_no: str) -> dict:
+    frappe.only_for(READ_ROLES)
     if not bom_no: return {}
     return frappe.db.get_value("BOM", bom_no,
         ["custom_design_no", "custom_article_name", "custom_design_master"], as_dict=True) or {}
@@ -457,6 +467,7 @@ def get_bom_design_context(bom_no: str) -> dict:
 
 @frappe.whitelist()
 def get_stage_skip_transfer(work_order: str = None, design_master: str = None, production_item: str = None) -> dict:
+    frappe.only_for(READ_ROLES)
     if work_order and not design_master:
         result = frappe.db.get_value("Work Order", work_order, ["custom_design_master", "production_item"])
         if result:
@@ -478,6 +489,14 @@ def get_stage_skip_transfer(work_order: str = None, design_master: str = None, p
 
 @frappe.whitelist()
 def check_manufacture_se_exists(work_order: str) -> bool:
+    frappe.only_for(READ_ROLES)
     if not work_order: return False
     return bool(frappe.db.exists("Stock Entry",
         {"work_order": work_order, "stock_entry_type": "Manufacture", "docstatus": 1}))
+
+
+@frappe.whitelist()
+def get_finishing_grade_baseline(roll_ticket: str) -> dict:
+    frappe.only_for(READ_ROLES)
+    if not roll_ticket: return {}
+    return get_stage_grades_from_rt(roll_ticket, "Finish")

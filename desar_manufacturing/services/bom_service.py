@@ -18,7 +18,7 @@ from frappe.utils import flt
 from typing import Optional
 
 from desar_manufacturing.constants import (
-    WARPING_BEAM, GREY_ROLL, FINISHED_ROLL
+    WARPING_BEAM, GREY_ROLL, FINISHED_ROLL, CHEMICAL_MATERIALS
 )
 from desar_manufacturing.utils.validation_utils import resolve_by_keyword
 
@@ -59,10 +59,12 @@ class BOMService:
         stages = sorted(dm.stage_configuration, key=lambda s: s.stage_seq or 0)
         results = {}
         prev_output_item = None
+        prev_bom_no = None
 
         for stage in stages:
             if stage.bom_no and frappe.db.exists("BOM", stage.bom_no):
                 prev_output_item = stage.output_item
+                prev_bom_no = stage.bom_no
                 results[stage.stage_name] = stage.bom_no
                 continue  # BOM already exists
 
@@ -76,11 +78,16 @@ class BOMService:
             # Build BOM items
             bom_items = []
 
-            # Add previous stage output as input
+            # Add previous stage output as input. bom_no pins this row to
+            # THIS design's own upstream BOM — without it, ERPNext's
+            # multi-level explosion falls back to whichever BOM currently
+            # happens to be flagged default for the shared item name (e.g.
+            # "Grey Roll"), which is wrong the moment more than one design
+            # shares that item.
             if prev_output_item:
                 source_wh = cls._get_source_wh_for_stage(stage_lower)
                 bom_items.append(cls._make_bom_item(
-                    prev_output_item, 1, "Nos", source_wh
+                    prev_output_item, 1, "Nos", source_wh, bom_no=prev_bom_no
                 ))
 
             # Add yarn for Warping stage
@@ -131,6 +138,7 @@ class BOMService:
                 )
                 results[stage.stage_name] = bom_name
                 prev_output_item = output_item
+                prev_bom_no = bom_name
 
             except Exception:
                 frappe.log_error(
@@ -197,6 +205,10 @@ class BOMService:
         ]:
             if qty and frappe.db.exists("Item", item_code):
                 items.append(cls._make_bom_item(item_code, qty, uom, chemical_wh))
+
+        chem_qty = flt(dm.chemical_materials_qty_kg)
+        if chem_qty and frappe.db.exists("Item", CHEMICAL_MATERIALS):
+            items.append(cls._make_bom_item(CHEMICAL_MATERIALS, chem_qty, "Kg", chemical_wh))
         return items
 
     @classmethod
@@ -208,6 +220,7 @@ class BOMService:
         for item_code in [
             dm.branded_box_item or f"BrandedBox-{size}",
             dm.label_item or "LabelStamp",
+            dm.sticker_item or f"Sticker-{size}",
         ]:
             if frappe.db.exists("Item", item_code):
                 items.append(cls._make_bom_item(item_code, pcs, "Nos", accessories_wh))
@@ -223,26 +236,30 @@ class BOMService:
         """
         results = {}
 
-        if not dm.bom_level_1:
+        bom1 = dm.bom_level_1
+        if not bom1:
             bom1 = cls._create_bom_warping_beam(dm)
             if bom1:
                 frappe.db.set_value("Design Master", dm.name, "bom_level_1", bom1)
                 results["bom_level_1"] = bom1
 
-        if not dm.bom_level_2:
-            bom2 = cls._create_bom_grey_roll(dm)
+        bom2 = dm.bom_level_2
+        if not bom2:
+            bom2 = cls._create_bom_grey_roll(dm, bom1)
             if bom2:
                 frappe.db.set_value("Design Master", dm.name, "bom_level_2", bom2)
                 results["bom_level_2"] = bom2
 
-        if not dm.bom_level_3:
-            bom3 = cls._create_bom_finished_roll(dm)
+        bom3 = dm.bom_level_3
+        if not bom3:
+            bom3 = cls._create_bom_finished_roll(dm, bom2)
             if bom3:
                 frappe.db.set_value("Design Master", dm.name, "bom_level_3", bom3)
                 results["bom_level_3"] = bom3
 
-        if not dm.bom_level_4:
-            bom4 = cls._create_bom_shemagh(dm)
+        bom4 = dm.bom_level_4
+        if not bom4:
+            bom4 = cls._create_bom_shemagh(dm, bom3)
             if bom4:
                 frappe.db.set_value("Design Master", dm.name, "bom_level_4", bom4)
                 results["bom_level_4"] = bom4
@@ -284,11 +301,11 @@ class BOMService:
         })
 
     @classmethod
-    def _create_bom_grey_roll(cls, dm) -> Optional[str]:
+    def _create_bom_grey_roll(cls, dm, warping_beam_bom: str = None) -> Optional[str]:
         wip_wh = frappe.db.get_single_value("DESAR Settings", "warping_wip_warehouse") or ""
         return cls._insert_and_submit_bom({
             "item": GREY_ROLL, "quantity": 1,
-            "items": [{"item_code": WARPING_BEAM, "qty": 1, "uom": "Nos", "source_warehouse": wip_wh}],
+            "items": [cls._make_bom_item(WARPING_BEAM, 1, "Nos", wip_wh, bom_no=warping_beam_bom)],
             "operations": [
                 {"operation": "Loom Loading", "workstation": "Loom 62", "time_in_mins": 30},
                 {"operation": "Weaving", "workstation": "Loom 62", "time_in_mins": 480},
@@ -297,10 +314,10 @@ class BOMService:
         })
 
     @classmethod
-    def _create_bom_finished_roll(cls, dm) -> Optional[str]:
+    def _create_bom_finished_roll(cls, dm, grey_roll_bom: str = None) -> Optional[str]:
         chemical_wh = frappe.db.get_single_value("DESAR Settings", "chemical_warehouse") or ""
         grey_wh = frappe.db.get_single_value("DESAR Settings", "grey_roll_warehouse") or ""
-        items = [{"item_code": GREY_ROLL, "qty": 1, "uom": "Nos", "source_warehouse": grey_wh}]
+        items = [cls._make_bom_item(GREY_ROLL, 1, "Nos", grey_wh, bom_no=grey_roll_bom)]
         for item_code, qty, uom in [
             ("WashAgent", flt(dm.wash_agent_qty), "Litre"),
             ("FinishChem", flt(dm.finish_chem_qty), "Litre"),
@@ -308,6 +325,10 @@ class BOMService:
         ]:
             if qty and frappe.db.exists("Item", item_code):
                 items.append({"item_code": item_code, "qty": qty, "uom": uom, "source_warehouse": chemical_wh})
+
+        chem_qty = flt(dm.chemical_materials_qty_kg)
+        if chem_qty and frappe.db.exists("Item", CHEMICAL_MATERIALS):
+            items.append({"item_code": CHEMICAL_MATERIALS, "qty": chem_qty, "uom": "Kg", "source_warehouse": chemical_wh})
 
         return cls._insert_and_submit_bom({
             "item": FINISHED_ROLL, "quantity": 1, "items": items,
@@ -320,7 +341,7 @@ class BOMService:
         })
 
     @classmethod
-    def _create_bom_shemagh(cls, dm) -> Optional[str]:
+    def _create_bom_shemagh(cls, dm, finished_roll_bom: str = None) -> Optional[str]:
         pcs = int(dm.pieces_per_roll or 50)
         size = dm.default_size or "60"
         article_code = (dm.article_name or "VIC")[:3].upper()
@@ -333,9 +354,9 @@ class BOMService:
 
         finished_wh = frappe.db.get_single_value("DESAR Settings", "finished_roll_warehouse") or ""
         accessories_wh = frappe.db.get_single_value("DESAR Settings", "accessories_warehouse") or ""
-        items = [{"item_code": FINISHED_ROLL, "qty": 1, "uom": "Nos", "source_warehouse": finished_wh}]
+        items = [cls._make_bom_item(FINISHED_ROLL, 1, "Nos", finished_wh, bom_no=finished_roll_bom)]
 
-        for acc in [dm.branded_box_item or f"BrandedBox-{size}", dm.label_item or "LabelStamp"]:
+        for acc in [dm.branded_box_item or f"BrandedBox-{size}", dm.label_item or "LabelStamp", dm.sticker_item or "Sticker"]:
             if frappe.db.exists("Item", acc):
                 items.append({"item_code": acc, "qty": pcs, "uom": "Nos", "source_warehouse": accessories_wh})
 
@@ -357,14 +378,20 @@ class BOMService:
     # ── Shared ────────────────────────────────────────────────────────────────
 
     @classmethod
-    def _make_bom_item(cls, item_code: str, qty: float, uom: str, warehouse: str) -> dict:
-        """Helper to construct a BOM item dictionary."""
-        return {
+    def _make_bom_item(cls, item_code: str, qty: float, uom: str, warehouse: str, bom_no: str = None) -> dict:
+        """Helper to construct a BOM item dictionary. Pass bom_no when
+        item_code is itself a manufactured (has-its-own-BOM) component, so
+        multi-level explosion follows this exact chain instead of falling
+        back to that item's current default BOM."""
+        item = {
             "item_code": item_code,
             "qty": qty,
             "uom": uom,
             "source_warehouse": warehouse,
         }
+        if bom_no:
+            item["bom_no"] = bom_no
+        return item
 
     #: Keyword → Workstation name, used only when Stage Operations has no
     #: workstation defined for a stage and no matching Operation record

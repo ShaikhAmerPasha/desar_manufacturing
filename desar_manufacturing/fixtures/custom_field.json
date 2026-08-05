@@ -60,6 +60,26 @@
  },
  {
   "doctype": "Custom Field",
+  "name": "BOM-custom_design_no",
+  "dt": "BOM",
+  "fieldname": "custom_design_no",
+  "fieldtype": "Data",
+  "label": "Design No.",
+  "insert_after": "is_active",
+  "description": "Copied from Design Master at BOM creation. Read by Work Order's design-context auto-fill."
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "BOM-custom_article_name",
+  "dt": "BOM",
+  "fieldname": "custom_article_name",
+  "fieldtype": "Data",
+  "label": "Article Name",
+  "insert_after": "custom_design_no",
+  "description": "Copied from Design Master at BOM creation. Read by Work Order's design-context auto-fill."
+ },
+ {
+  "doctype": "Custom Field",
   "name": "Job Card-custom_assigned_to",
   "dt": "Job Card",
   "fieldname": "custom_assigned_to",
@@ -69,5 +89,16 @@
   "insert_after": "employee",
   "in_list_view": 1,
   "search_index": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Production Plan-custom_production_buffer_pct",
+  "dt": "Production Plan",
+  "fieldname": "custom_production_buffer_pct",
+  "fieldtype": "Percent",
+  "label": "Production Buffer %",
+  "insert_after": "company",
+  "default": "0",
+  "description": "Extra % planned over Sales Order qty (manufacturing loss allowance). Applied to Planned Qty on save, while still in Draft."
  }
 ]

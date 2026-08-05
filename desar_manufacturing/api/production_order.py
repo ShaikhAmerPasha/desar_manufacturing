@@ -19,15 +19,23 @@ MUTATE_ROLES  = ["System Manager", "DESAR Supervisor", "DESAR Operator"]
 
 
 @frappe.whitelist()
-def preview_plan(production_plan: str) -> dict:
+def preview_plan(production_plan: str, design_master: str = None) -> dict:
 	frappe.only_for(CREATE_ROLES)
-	return _safe(production_plan_service.preview_plan, production_plan)
+	return _safe(production_plan_service.preview_plan, production_plan, design_master)
 
 
 @frappe.whitelist()
-def create_desar_po(production_plan: str) -> dict:
+def create_desar_po(production_plan: str, design_master: str = None) -> dict:
 	frappe.only_for(CREATE_ROLES)
-	return _safe(production_plan_service.create_desar_po_from_plan, production_plan)
+	return _safe(production_plan_service.create_desar_po_from_plan, production_plan, design_master)
+
+
+@frappe.whitelist()
+def list_plan_designs(production_plan: str) -> list:
+	"""Distinct Design Masters on this plan. A UI showing >1 should call
+	create_desar_po once per design_master instead of once for the plan."""
+	frappe.only_for(CREATE_ROLES)
+	return _safe(production_plan_service.list_design_masters_for_plan, production_plan)
 
 
 @frappe.whitelist()

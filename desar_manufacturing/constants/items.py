@@ -10,6 +10,9 @@ WARPING_BEAM = "Warping Beam"
 GREY_ROLL = "Grey Roll"
 FINISHED_ROLL = "Finished Roll"
 
+# ── Chemicals ────────────────────────────────────────────────────────────────
+CHEMICAL_MATERIALS = "Chemical Materials"
+
 # ── Scrap ────────────────────────────────────────────────────────────────────
 SHEMAGH_SCRAP = "Shemagh Scrap"
 

@@ -17,6 +17,7 @@ from frappe.utils import nowdate
 
 from desar_manufacturing.services import batch_service, qi_service, stock_entry_service
 from desar_manufacturing.utils.validation_utils import resolve_by_keyword
+from desar_manufacturing.utils.doc_utils import is_submitted
 
 
 # ── Grey Roll ─────────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ def start_grey_roll(production_order: str, roll_no: int) -> dict:
 	then calls complete_grey_roll.
 	"""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if roll.grey_roll_status != "Not Started":
@@ -67,6 +69,7 @@ def complete_grey_roll(production_order: str, roll_no: int) -> dict:
 	Step 2: Create Manufacture SE + QI after Job Cards are completed.
 	"""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if roll.grey_roll_status != "In Progress":
@@ -109,6 +112,7 @@ def complete_grey_roll(production_order: str, roll_no: int) -> dict:
 def start_finished_roll(production_order: str, roll_no: int) -> dict:
 	"""Step 1: Submit Finished Roll WO + Transfer SE."""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if roll.finished_roll_status != "Not Started":
@@ -141,6 +145,7 @@ def start_finished_roll(production_order: str, roll_no: int) -> dict:
 def complete_finished_roll(production_order: str, roll_no: int) -> dict:
 	"""Step 2: Manufacture SE + QI after Job Cards completed."""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if roll.finished_roll_status != "In Progress":
@@ -175,6 +180,7 @@ def complete_finished_roll(production_order: str, roll_no: int) -> dict:
 def start_packing(production_order: str, roll_no: int) -> dict:
 	"""Step 1: Submit Packing WO + Transfer SE + draft Manufacture SE."""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if roll.packing_status != "Not Started":
@@ -207,6 +213,7 @@ def start_packing(production_order: str, roll_no: int) -> dict:
 def complete_packing(production_order: str, roll_no: int) -> dict:
 	"""Step 2: Create draft Manufacture SE after Job Cards completed."""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if roll.packing_status != "In Progress":
@@ -234,11 +241,12 @@ def complete_packing(production_order: str, roll_no: int) -> dict:
 def finalize_packing(production_order: str, roll_no: int) -> dict:
 	"""Step 3: Create QI after Manufacture SE is submitted."""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if not roll.packing_manufacture_se:
 		frappe.throw(_("No Manufacture SE found for Packing Roll {0}.").format(roll_no))
-	if not _is_submitted("Stock Entry", roll.packing_manufacture_se):
+	if not is_submitted("Stock Entry", roll.packing_manufacture_se):
 		frappe.throw(_("Submit the Packing Manufacture SE first."))
 	if roll.packing_qi:
 		frappe.throw(_("QI already created for Packing Roll {0}.").format(roll_no))
@@ -256,11 +264,12 @@ def finalize_packing(production_order: str, roll_no: int) -> dict:
 def complete_roll(production_order: str, roll_no: int) -> dict:
 	"""Mark roll as fully completed after packing QI is submitted."""
 	po   = frappe.get_doc("DESAR Production Order", production_order, for_update=True)
+	_guard_po_submitted(po)
 	roll = _get_roll(po, roll_no)
 
 	if not roll.packing_qi:
 		frappe.throw(_("No Packing QI found for Roll {0}.").format(roll_no))
-	if not _is_submitted("Quality Inspection", roll.packing_qi):
+	if not is_submitted("Quality Inspection", roll.packing_qi):
 		frappe.throw(_("Submit the Packing QI first."))
 
 	_update_roll(roll, {
@@ -295,6 +304,7 @@ def revert_qi_reference(qi_name: str) -> None:
 		],
 	)
 	for row in rows:
+		po = frappe.get_doc("DESAR Production Order", row.parent, for_update=True)
 		if row.grey_roll_qi == qi_name:
 			_guard_next_stage_not_started(row.finished_roll_status, "Grey Roll")
 			_update_roll(row, {"grey_roll_qi": "", "grey_roll_status": "In Progress"})
@@ -306,7 +316,7 @@ def revert_qi_reference(qi_name: str) -> None:
 			if row.roll_status == "Completed":
 				updates["roll_status"] = "In Progress"
 			_update_roll(row, updates)
-		_refresh_po_status_by_name(row.parent)
+		_refresh_po_status(po)
 
 
 def revert_stock_entry_reference(se_name: str) -> None:
@@ -331,6 +341,7 @@ def revert_stock_entry_reference(se_name: str) -> None:
 		],
 	)
 	for row in rows:
+		po = frappe.get_doc("DESAR Production Order", row.parent, for_update=True)
 		if row.packing_manufacture_se == se_name:
 			_update_roll(row, {
 				"packing_manufacture_se": "", "packing_qi": "", "packing_status": "In Progress",
@@ -345,7 +356,7 @@ def revert_stock_entry_reference(se_name: str) -> None:
 			_update_roll(row, {
 				"finished_roll_batch": "", "finished_roll_qi": "", "finished_roll_status": "In Progress",
 			})
-		_refresh_po_status_by_name(row.parent)
+		_refresh_po_status(po)
 
 
 def revert_work_order_reference(wo_name: str) -> None:
@@ -368,6 +379,7 @@ def revert_work_order_reference(wo_name: str) -> None:
 		],
 	)
 	for row in rows:
+		po = frappe.get_doc("DESAR Production Order", row.parent, for_update=True)
 		if row.grey_roll_wo == wo_name:
 			_guard_next_stage_not_started(row.finished_roll_status, "Grey Roll")
 			_update_roll(row, {"grey_roll_wo": "", "grey_roll_status": "Not Started"})
@@ -376,7 +388,12 @@ def revert_work_order_reference(wo_name: str) -> None:
 			_update_roll(row, {"finished_roll_wo": "", "finished_roll_status": "Not Started"})
 		elif row.packing_wo == wo_name:
 			_update_roll(row, {"packing_wo": "", "packing_status": "Not Started"})
-		_refresh_po_status_by_name(row.parent)
+		_refresh_po_status(po)
+
+
+def _guard_po_submitted(po) -> None:
+	if po.docstatus != 1:
+		frappe.throw(_("Production Order {0} is not submitted.").format(po.name))
 
 
 def _guard_next_stage_not_started(next_stage_status: str, stage_label: str) -> None:
@@ -384,11 +401,6 @@ def _guard_next_stage_not_started(next_stage_status: str, stage_label: str) -> N
 		frappe.throw(
 			_("Cannot cancel {0} — its next stage has already started. Reverse the next stage first.").format(stage_label)
 		)
-
-
-def _refresh_po_status_by_name(po_name: str) -> None:
-	po = frappe.get_doc("DESAR Production Order", po_name)
-	_refresh_po_status(po)
 
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
@@ -403,7 +415,7 @@ def refresh_roll(production_order: str, roll_no: int) -> dict:
 	# Grey Roll QI submitted → unlock Finished Roll
 	if (roll.grey_roll_status == "In Progress"
 			and roll.grey_roll_qi
-			and _is_submitted("Quality Inspection", roll.grey_roll_qi)):
+			and is_submitted("Quality Inspection", roll.grey_roll_qi)):
 		_update_roll(roll, {
 			"grey_roll_status":     "Completed",
 			"finished_roll_status": "Not Started",
@@ -415,7 +427,7 @@ def refresh_roll(production_order: str, roll_no: int) -> dict:
 	# Finished Roll QI submitted → unlock Packing
 	if (roll.finished_roll_status == "In Progress"
 			and roll.finished_roll_qi
-			and _is_submitted("Quality Inspection", roll.finished_roll_qi)):
+			and is_submitted("Quality Inspection", roll.finished_roll_qi)):
 		_update_roll(roll, {
 			"finished_roll_status": "Completed",
 			"packing_status":       "Not Started",
@@ -428,7 +440,7 @@ def refresh_roll(production_order: str, roll_no: int) -> dict:
 	if (roll.packing_status == "In Progress"
 			and roll.packing_manufacture_se
 			and not roll.packing_qi
-			and _is_submitted("Stock Entry", roll.packing_manufacture_se)):
+			and is_submitted("Stock Entry", roll.packing_manufacture_se)):
 		se       = frappe.get_doc("Stock Entry", roll.packing_manufacture_se)
 		batch_no = batch_service.get_batch_from_stock_entry(se)
 		qi       = _create_roll_qi(po, roll, "Packing", batch_no, roll.packing_wo)
@@ -440,7 +452,7 @@ def refresh_roll(production_order: str, roll_no: int) -> dict:
 	# Packing QI submitted → complete roll
 	if (roll.packing_status == "In Progress"
 			and roll.packing_qi
-			and _is_submitted("Quality Inspection", roll.packing_qi)):
+			and is_submitted("Quality Inspection", roll.packing_qi)):
 		_update_roll(roll, {
 			"packing_status": "Completed",
 			"roll_status":    "Completed",
@@ -600,10 +612,6 @@ def _validate_job_cards(work_order: str, stage_name: str) -> None:
 def _create_roll_qi(po, roll, stage_name: str, batch_no: str, work_order: str) -> str:
 	qi = qi_service.make_roll_qi(po, roll, stage_name, batch_no, work_order)
 	return qi.name
-
-
-def _is_submitted(doctype: str, name: str) -> bool:
-	return frappe.db.get_value(doctype, name, "docstatus") == 1
 
 
 def _roll_dict(roll) -> dict:

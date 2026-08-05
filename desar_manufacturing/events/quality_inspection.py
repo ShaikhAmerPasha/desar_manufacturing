@@ -6,32 +6,56 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from desar_manufacturing.utils.grade_utils import is_final_stage, get_design_master_from_qi, get_work_order_from_qi
+from desar_manufacturing.utils.grade_utils import (
+    is_final_stage, get_design_master_from_qi, get_work_order_from_qi, get_stage_grades_from_rt,
+)
 from desar_manufacturing.utils.validation_utils import validate_grade_readings_total
 
 
+def validate(doc, method):
+    ctx = _final_stage_readings(doc)
+    if not ctx:
+        return
+    stage_name, readings = ctx
+    _validate_grade_adjustments(doc, stage_name, readings)
+
+
 def before_submit(doc, method):
-    readings = doc.get("custom_desar_grade_readings") or []
-    if not readings:
+    ctx = _final_stage_readings(doc)
+    if not ctx:
         return
+    stage_name, readings = ctx
     total = sum(flt(r.get("qty") or 0) for r in readings)
-    if not total:
-        return
-    stage_name = doc.get("custom_desar_stage_name") or ""
-    if not is_final_stage(stage_name, get_design_master_from_qi(doc)):
-        return
     wo_qty = _get_wo_qty(doc)
     valid, message = validate_grade_readings_total(total, wo_qty)
     if not valid:
         frappe.throw(_(message))
-    _validate_grade_adjustments(doc, stage_name, readings)
+
+
+def _final_stage_readings(doc):
+    """
+    (stage_name, readings) if this QI has non-zero grade readings at its
+    Design Master's final stage, else None. Shared guard for the save-time
+    grade-movement check (validate) and the submit-time total check
+    (before_submit).
+    """
+    readings = doc.get("custom_desar_grade_readings") or []
+    if not readings:
+        return None
+    total = sum(flt(r.get("qty") or 0) for r in readings)
+    if not total:
+        return None
+    stage_name = doc.get("custom_desar_stage_name") or ""
+    if not is_final_stage(stage_name, get_design_master_from_qi(doc)):
+        return None
+    return stage_name, readings
 
 
 def _validate_grade_adjustments(doc, stage_name, final_readings):
     rt_name = doc.get("custom_roll_ticket") or ""
     if not rt_name:
         return
-    finishing_grades = _get_stage_grades_from_rt(rt_name, "Finish")
+    finishing_grades = get_stage_grades_from_rt(rt_name, "Finish")
     if not finishing_grades:
         return
     final_map = {r.get("grade_code"): flt(r.get("qty") or 0) for r in final_readings}
@@ -65,23 +89,6 @@ def _validate_adjustment_quantities(finishing_map, final_map, adjustments):
         frappe.throw(_("Grade Adjustment quantities do not reconcile:<br>{0}").format("<br>".join(mismatches)))
 
 
-def _get_stage_grades_from_rt(rt_name, stage_name_pattern):
-    """Use LIKE pattern for flexible stage name matching."""
-    actual_stage = frappe.db.get_value(
-        "DESAR Roll Ticket Stage Grade",
-        {"parent": rt_name, "stage_name": ["like", f"%{stage_name_pattern}%"]},
-        "stage_name"
-    )
-    if not actual_stage:
-        return {}
-    rows = frappe.get_all(
-        "DESAR Roll Ticket Stage Grade",
-        filters={"parent": rt_name, "stage_name": actual_stage},
-        fields=["grade_code", "qty"],
-    )
-    return {r.grade_code: flt(r.qty) for r in rows}
-
-
 def on_submit(doc, method):
     from desar_manufacturing.services.roll_ticket_service import RollTicketService
     RollTicketService.update_from_qi(doc)
@@ -94,6 +101,8 @@ def on_cancel(doc, method):
     from desar_manufacturing.services.roll_ticket_service import RollTicketService
     from desar_manufacturing.services.roll_service import revert_qi_reference
 
+    _guard_repack_se_not_submitted(doc)
+
     RollTicketService.revert_from_qi_cancel(doc)
     revert_qi_reference(doc.name)
 
@@ -104,6 +113,21 @@ def on_cancel(doc, method):
                 "from it, review and cancel it manually — it was not reversed automatically."
             ),
             alert=True, indicator="orange",
+        )
+
+
+def _guard_repack_se_not_submitted(doc):
+    """
+    Block cancelling a Final Packing QI while its auto-created Repack SE is
+    still submitted — reversing the QI without also reversing that SE would
+    leave a live Repack of stock produced under a now-cancelled inspection.
+    """
+    repack_se = frappe.db.get_value(
+        "Stock Entry", {"custom_source_qi": doc.name, "docstatus": 1}, "name"
+    )
+    if repack_se:
+        frappe.throw(
+            _("Cancel Repack Stock Entry {0} first — it was created from this Quality Inspection.").format(repack_se)
         )
 
 

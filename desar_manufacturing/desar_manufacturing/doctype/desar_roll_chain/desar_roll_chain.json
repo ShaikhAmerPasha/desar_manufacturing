@@ -25,7 +25,8 @@
   "packing_wo",
   "packing_manufacture_se",
   "packing_qi",
-  "packing_status"
+  "packing_status",
+  "repack_se"
  ],
  "fields": [
   {
@@ -177,12 +178,22 @@
    "options": "Locked\nNot Started\nIn Progress\nCompleted",
    "default": "Locked",
    "read_only": 1
+  },
+  {
+   "fieldname": "repack_se",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Repack SE",
+   "options": "Stock Entry",
+   "read_only": 1,
+   "description": "Set as soon as the grade-split Repack SE is created (even in Draft), so it's never orphaned if you navigate away before submitting it.",
+   "width": "120px"
   }
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-07-06 00:00:00.000000",
+ "modified": "2026-07-15 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Desar Manufacturing",
  "name": "DESAR Roll Chain",

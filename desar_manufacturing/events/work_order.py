@@ -1,12 +1,25 @@
 """
-DESAR Manufacturing — Work Order Event Handlers v3.3
-validate / before_submit:
-1. Auto-fill Design context from BOM
-2. Auto-set source_warehouse per stage (yarn/chemical/accessories store)
-3. Auto-set wip_warehouse per stage
-4. Auto-set target_warehouse per stage
-5. Auto-set scrap_warehouse from DESAR Settings
-6. Auto-set skip_transfer based on Stage Configuration
+DESAR Manufacturing — Work Order Event Handlers v3.4
+before_validate:
+1. Round qty / required_items qty for whole-number UOMs
+2. Auto-fill Design context from BOM
+3. Auto-set source_warehouse per stage (yarn/chemical/accessories store)
+4. Auto-set wip_warehouse per stage
+5. Auto-set target_warehouse per stage
+6. Auto-set scrap_warehouse from DESAR Settings
+7. Auto-set skip_transfer based on Stage Configuration
+
+All of the above live in before_validate, not validate — Production Plan's
+own create_work_order() sets wo.flags.ignore_validate = True before every
+insert() it makes (erpnext/manufacturing/doctype/production_plan/production_plan.py),
+which skips validate() (and any hooks.py-registered "validate" handler)
+entirely. before_validate is NOT gated by that flag (Frappe's
+run_before_save_methods() calls it first, then checks ignore_validate before
+proceeding to validate) — confirmed by testing directly against Work Orders
+created via Production Plan's bulk creation: a "validate" handler never ran,
+custom_design_master stayed blank on all of them, while calling the same
+logic directly always worked. This is the same reasoning already applied to
+qty-rounding below; design-context/warehouse autofill needed the same fix.
 """
 import frappe
 from frappe import _
@@ -39,6 +52,9 @@ def before_validate(doc, method=None):
     """
     _round_wo_qty(doc)
     _round_required_items_qty(doc)
+    _autofill_design_context(doc)
+    _autofill_warehouses(doc)
+    _apply_skip_transfer(doc)
 
 
 def _round_wo_qty(doc) -> None:
@@ -70,7 +86,13 @@ def _round_required_items_qty(doc) -> None:
 
 
 def validate(doc, method=None):
-    """Auto-fill all warehouse, design, and skip_transfer fields before save."""
+    """Skipped entirely when Production Plan bulk-creates a Work Order
+    (ignore_validate=True) — see module docstring — so before_validate is
+    what makes design context/warehouses/skip_transfer reliable. Re-running
+    them here too, for a normal (non-Production-Plan) save/submit: this runs
+    after core WorkOrder.validate() may have applied its own default
+    warehouses, and our before_validate pass ran before that — re-applying
+    here lets our stage-specific values win over a generic core default."""
     _autofill_design_context(doc)
     _autofill_warehouses(doc)
     _apply_skip_transfer(doc)
@@ -78,10 +100,8 @@ def validate(doc, method=None):
     # UOMs BEFORE recomputing it via set_required_items() — see work_order.py
     # lines 169-174. That recompute can silently reintroduce a fraction
     # AFTER the check already passed, so before_validate's rounding alone
-    # isn't enough; this hooks.py "validate" handler runs after the core
-    # class's own validate() (proven by autofill above already depending on
-    # that ordering), so round again here to catch the post-recompute value
-    # before it's actually persisted.
+    # isn't enough for a normal (non-Production-Plan) save/submit — round
+    # again here to catch the post-recompute value before it's persisted.
     _round_required_items_qty(doc)
     _reapply_forced_input_qty(doc)
 

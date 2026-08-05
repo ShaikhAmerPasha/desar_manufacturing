@@ -61,3 +61,19 @@ def get_stage_grades(roll_ticket: str, stage_name: str) -> dict:
         fields=["grade_code", "qty"],
     )
     return {r.grade_code: flt(r.qty) for r in rows}
+
+
+def get_stage_grades_from_rt(roll_ticket: str, stage_name_pattern: str) -> dict:
+    """
+    {grade_code: qty} for a roll ticket's stage matching `stage_name_pattern`
+    (LIKE match, e.g. "Finish") — resolves the actual stage name first since
+    dynamic Stage Configuration names vary (e.g. "Finishing", "Chemical Finish").
+    """
+    actual_stage = frappe.db.get_value(
+        "DESAR Roll Ticket Stage Grade",
+        {"parent": roll_ticket, "stage_name": ["like", f"%{stage_name_pattern}%"]},
+        "stage_name",
+    )
+    if not actual_stage:
+        return {}
+    return get_stage_grades(roll_ticket, actual_stage)
