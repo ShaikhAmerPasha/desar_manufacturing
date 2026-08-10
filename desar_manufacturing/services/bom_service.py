@@ -91,7 +91,8 @@ class BOMService:
                 ))
 
             # Add yarn for Warping stage
-            if "warp" in stage_lower and dm.warp_recipe:
+            has_yarn = dm.warp_recipe or any(dm.get(t) for t in ("warp_yarns", "weft_yarns", "flower_yarns"))
+            if "warp" in stage_lower and has_yarn:
                 bom_items.extend(cls._get_yarn_items(dm))
 
             # Add chemicals for Finishing/Dyeing stage
@@ -184,14 +185,29 @@ class BOMService:
 
     @classmethod
     def _get_yarn_items(cls, dm) -> list:
-        """Get yarn items from Warp Recipe."""
-        wr = frappe.get_doc("Warp Recipe", dm.warp_recipe)
+        """Get yarn items from inline tables (new) or Warp Recipe (legacy)."""
         yarn_wh = frappe.db.get_single_value("DESAR Settings", "yarn_warehouse") or ""
-        return [
-            cls._make_bom_item(item.yarn_item, flt(item.qty_kg), "Kg", yarn_wh)
-            for item in wr.yarn_items
-            if frappe.db.exists("Item", item.yarn_item)
-        ]
+        items = []
+
+        # New flow: read from inline yarn tables on Design Master
+        inline_tables = ("warp_yarns", "weft_yarns", "flower_yarns")
+        has_inline = any(dm.get(t) for t in inline_tables)
+        if has_inline:
+            for table in inline_tables:
+                for row in dm.get(table) or []:
+                    if flt(row.qty_kg) and frappe.db.exists("Item", row.yarn_item):
+                        items.append(cls._make_bom_item(row.yarn_item, flt(row.qty_kg), "Kg", yarn_wh))
+            return items
+
+        # Legacy flow: read from linked Warp Recipe
+        if dm.warp_recipe:
+            wr = frappe.get_doc("Warp Recipe", dm.warp_recipe)
+            return [
+                cls._make_bom_item(item.yarn_item, flt(item.qty_kg), "Kg", yarn_wh)
+                for item in wr.yarn_items
+                if frappe.db.exists("Item", item.yarn_item)
+            ]
+        return items
 
     @classmethod
     def _get_chemical_items(cls, dm) -> list:
@@ -278,20 +294,16 @@ class BOMService:
 
     @classmethod
     def _create_bom_warping_beam(cls, dm) -> Optional[str]:
-        if not dm.warp_recipe:
-            frappe.throw(_("Warp Recipe is required on Design Master to create BOM 1"))
+        has_yarn = dm.warp_recipe or any(dm.get(t) for t in ("warp_yarns", "weft_yarns", "flower_yarns"))
+        if not has_yarn:
+            frappe.throw(_("Yarn Specification is required on Design Master to create BOM 1"))
 
-        wr = frappe.get_doc("Warp Recipe", dm.warp_recipe)
-        if not wr.yarn_items:
-            frappe.throw(_("Warp Recipe {0} has no yarn items").format(dm.warp_recipe))
+        yarn_items = cls._get_yarn_items(dm)
+        if not yarn_items:
+            frappe.throw(_("No valid yarn items found for Design Master {0}").format(dm.name))
 
         yarn_wh = frappe.db.get_single_value("DESAR Settings", "yarn_warehouse") or ""
-        bom_items = [
-            {"item_code": item.yarn_item, "qty": flt(item.qty_kg), "uom": "Kg",
-             "source_warehouse": yarn_wh}
-            for item in wr.yarn_items
-            if frappe.db.exists("Item", item.yarn_item)
-        ]
+        bom_items = yarn_items
 
         return cls._insert_and_submit_bom({
             "item": WARPING_BEAM, "quantity": 1,
@@ -454,9 +466,11 @@ class BOMService:
             errors.append("Design No.")
         if not dm.article_name:
             errors.append("Article Name")
-        if not dm.warp_recipe:
-            errors.append("Warp Recipe")
+        has_inline_yarn = any(dm.get(t) for t in ("warp_yarns", "weft_yarns", "flower_yarns"))
+        if not dm.warp_recipe and not has_inline_yarn:
+            errors.append("Yarn Specification (or legacy Warp Recipe)")
         if errors:
             frappe.throw(
                 _("The following fields are required: <b>{0}</b>").format(", ".join(errors))
             )
+

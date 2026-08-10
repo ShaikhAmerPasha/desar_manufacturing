@@ -483,12 +483,20 @@ def _update_roll(roll, updates: dict) -> None:
 		)
 
 
-def _refresh_po_status(po) -> None:
+def refresh_po_status(po) -> None:
+	"""Refreshes both the coarse lifecycle `status` (Submitted/In Progress/
+	Completed — unchanged, used nowhere else for logic) and the new
+	`current_stage` (which stage is actually holding this order up, for list
+	view — see _compute_current_stage). Called from every stage transition,
+	including Warping/Beam Split (before any roll exists)."""
 	po.reload()
 	rolls = po.roll_chains
-	if not rolls:
-		return
-	all_done     = all(r.roll_status == "Completed" for r in rolls)
+
+	current_stage = _compute_current_stage(po, rolls)
+	if po.current_stage != current_stage:
+		po.db_set("current_stage", current_stage, update_modified=False)
+
+	all_done     = bool(rolls) and all(r.roll_status == "Completed" for r in rolls)
 	any_progress = any(r.roll_status in ("In Progress", "Completed") for r in rolls)
 
 	if all_done and po.warping_status == "Completed" and po.beam_split_status == "Completed":
@@ -500,6 +508,44 @@ def _refresh_po_status(po) -> None:
 
 	if po.status != new_status:
 		po.db_set("status", new_status, update_modified=True)
+
+
+# Kept as a private alias — every existing call site in this file uses the
+# old name; new cross-module callers (warping_service.py) use refresh_po_status.
+_refresh_po_status = refresh_po_status
+
+
+def _compute_current_stage(po, rolls) -> str:
+	"""Bottleneck stage across the whole order — the earliest stage that
+	still has work left, with how many rolls are sitting there right now.
+	Chosen over a majority-vote or full-breakdown display: answers a
+	supervisor's real question ("what's holding this order up"), and a
+	single stuck roll can't hide behind others that moved on."""
+	if po.warping_status != "Completed":
+		return "Warping"
+	if po.beam_split_status != "Completed":
+		return "Beam Split"
+	if not rolls:
+		return "Beam Split"
+
+	order = ["Grey Roll", "Finished Roll", "Packing"]
+	roll_stage = []
+	for r in rolls:
+		if r.grey_roll_status != "Completed":
+			roll_stage.append("Grey Roll")
+		elif r.finished_roll_status != "Completed":
+			roll_stage.append("Finished Roll")
+		elif r.packing_status != "Completed":
+			roll_stage.append("Packing")
+		else:
+			roll_stage.append("Completed")
+
+	for stage in order:
+		count = roll_stage.count(stage)
+		if count:
+			return f"{stage} ({count}/{len(rolls)} rolls)"
+
+	return "Completed"
 
 
 def _configure_wo(wo, po, stage_keyword: str, is_final: bool = False) -> None:

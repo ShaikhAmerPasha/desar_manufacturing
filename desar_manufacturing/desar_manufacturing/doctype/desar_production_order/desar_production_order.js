@@ -231,8 +231,8 @@ frappe.ui.form.on("DESAR Production Order", {
 					</span>
 					${batch ? `<span style="font-weight:400; font-size:12px; color:#6c757d;">Beam Batch: <a href="${frappe.utils.get_form_link("Batch", batch)}" target="_blank" class="desar-link">${batch}</a></span>` : ""}
 				</div>
-				<div class="desar-dashboard-body" style="display:${display_style}; border-top:1px solid #f1f5f9;">
-					${_details_toggle(__("Details"), details_html)}
+				<div class="desar-dashboard-body" style="display:${display_style}; border-top:1px solid #f1f5f9; padding-top:10px;">
+					${details_html}
 				</div>
 			</div>
 		`);
@@ -251,7 +251,6 @@ frappe.ui.form.on("DESAR Production Order", {
 		});
 
 		_bind_submit_buttons($card, frm);
-		_bind_details_toggle($card);
 		$wrapper.append($card);
 	},
 
@@ -272,7 +271,6 @@ frappe.ui.form.on("DESAR Production Order", {
 		frm.doc.roll_chains.forEach(roll => $wrap.append(_render_roll_row(frm, roll)));
 
 		_bind_submit_buttons($wrap, frm);
-		_bind_details_toggle($wrap);
 
 		// Event delegation for stage accordion toggles
 		$wrap.on("click", ".desar-stage-header", function(e) {
@@ -284,6 +282,20 @@ frappe.ui.form.on("DESAR Production Order", {
 				$indicator.text("▶");
 			} else {
 				$body.slideDown(120);
+				$indicator.text("▼");
+			}
+		});
+
+		// Event delegation for roll accordion toggles
+		$wrap.on("click", ".desar-roll-header", function(e) {
+			if ($(e.target).closest("a").length || $(e.target).closest("button").length) return;
+			const $body = $(this).next(".desar-roll-body");
+			const $indicator = $(this).find(".roll-toggle-indicator");
+			if ($body.is(":visible")) {
+				$body.slideUp(150);
+				$indicator.text("▶");
+			} else {
+				$body.slideDown(150);
 				$indicator.text("▼");
 			}
 		});
@@ -335,22 +347,29 @@ function _render_roll_row(frm, roll) {
 	const color = _status_color(roll.roll_status || "Not Started");
 	const icon  = _status_icon(roll.roll_status || "Not Started");
 
+	const is_completed = roll.roll_status === "Completed";
+	const display_style = is_completed ? "none" : "block";
+	const toggle_icon = is_completed ? "▶" : "▼";
+
 	const $row = $(`
 		<div style="border:1px solid ${color};border-left:4px solid ${color};border-radius:8px;
 			padding:14px;margin-bottom:12px;background:white;box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-			<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+			<div class="desar-roll-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;">
 				<div style="font-weight:700;font-size:14px;color:#1e293b;">
+					<span class="roll-toggle-indicator" style="margin-right:6px;font-size:11px;">${toggle_icon}</span>
 					${icon} Roll ${roll.roll_no}
 					${roll.beam_roll_batch ? `<span style="font-weight:400;font-size:12px;color:#6c757d;margin-left:8px;">Beam: <a href="${frappe.utils.get_form_link("Batch", roll.beam_roll_batch)}" target="_blank" class="desar-link">${roll.beam_roll_batch}</a></span>` : ""}
 					${roll.roll_ticket ? `<span style="font-size:12px;margin-left:8px;padding: 2px 6px; background:#f1f5f9; border-radius:4px;"><a href="${frappe.utils.get_form_link("Roll Ticket", roll.roll_ticket)}" target="_blank" class="desar-link">🎫 Ticket: ${roll.roll_ticket}</a></span>` : ""}
 				</div>
 				<div class="roll-actions"></div>
 			</div>
-			<div style="margin-bottom:10px;">${_roll_summary_html(roll)}</div>
-			<div style="display:flex;flex-direction:column;gap:8px;">
-				${_render_stage_section(frm, "Grey Roll",     roll.grey_roll_status,     roll.grey_roll_wo,     roll.grey_roll_batch,    roll.grey_roll_qi,     "grey")}
-				${_render_stage_section(frm, "Finished Roll", roll.finished_roll_status, roll.finished_roll_wo, roll.finished_roll_batch, roll.finished_roll_qi, "finished")}
-				${_render_stage_section(frm, "Packing",       roll.packing_status,       roll.packing_wo,       "",                       roll.packing_qi,      "packing")}
+			<div class="desar-roll-body" style="display:${display_style}; margin-top:10px;">
+				<div style="margin-bottom:10px;">${_roll_summary_html(roll)}</div>
+				<div style="display:flex;flex-direction:column;gap:8px;">
+					${_render_stage_section(frm, "Grey Roll",     roll.grey_roll_status,     roll.grey_roll_wo,     roll.grey_roll_batch,    roll.grey_roll_qi,     "grey")}
+					${_render_stage_section(frm, "Finished Roll", roll.finished_roll_status, roll.finished_roll_wo, roll.finished_roll_batch, roll.finished_roll_qi, "finished")}
+					${_render_stage_section(frm, "Packing",       roll.packing_status,       roll.packing_wo,       "",                       roll.packing_qi,      "packing")}
+				</div>
 			</div>
 		</div>`);
 
@@ -398,8 +417,8 @@ function _render_stage_section(frm, stage_label, status, wo, batch_no, qi_no, st
 					${batch_no ? `Batch: <a href="${frappe.utils.get_form_link("Batch", batch_no)}" target="_blank" class="desar-link">${batch_no}</a>` : ""}
 				</span>
 			</div>
-			<div class="desar-stage-body" style="display:${display_style}; border-top:1px solid #f1f5f9;">
-				${_details_toggle(__("Details"), details_html)}
+			<div class="desar-stage-body" style="display:${display_style}; border-top:1px solid #f1f5f9; padding-top:8px;">
+				${details_html}
 			</div>
 		</div>
 	`;
@@ -517,33 +536,6 @@ function _roll_summary_html(roll) {
 }
 
 
-function _details_toggle(label, details_html) {
-	return `
-		<div class="desar-details-toggle" style="cursor:pointer; font-size:11px; color:#2563eb; display:inline-block;">
-			<span class="desar-details-indicator">▸</span> ${label}
-		</div>
-		<div class="desar-details-body" style="display:none; margin-top:8px;">
-			${details_html}
-		</div>
-	`;
-}
-
-
-function _bind_details_toggle($scope) {
-	$scope.on("click", ".desar-details-toggle", function() {
-		const $body = $(this).next(".desar-details-body");
-		const $ind = $(this).find(".desar-details-indicator");
-		if ($body.is(":visible")) {
-			$body.slideUp(120);
-			$ind.text("▸");
-		} else {
-			$body.slideDown(120);
-			$ind.text("▾");
-		}
-	});
-}
-
-
 function _bind_submit_buttons($scope, frm) {
 	$scope.on("click", ".btn-submit-se", function(e) {
 		e.preventDefault();
@@ -642,7 +634,12 @@ function _split_beam_dialog(frm) {
 				// array directly (grid.js:571) instead of the child doctype's
 				// meta — mirrors DESAR Beam Split Row's own field definitions.
 				fields: [
-					{ fieldname: "qty_to_split", fieldtype: "Int", label: __("No. of Rolls"), in_list_view: 1, reqd: 1 },
+					// Locked to 1 — this factory's real splits are uneven (each
+					// row is one physical roll of its own size), so the
+					// multi-roll-per-row shortcut isn't worth the blank field a
+					// freshly-added row shows otherwise. default makes Grid's
+					// "Add Row" populate this instead of leaving it empty.
+					{ fieldname: "qty_to_split", fieldtype: "Int", label: __("No. of Rolls"), in_list_view: 1, reqd: 1, default: 1, read_only: 1 },
 					{ fieldname: "pieces_per_split", fieldtype: "Int", label: __("Pieces per Roll"), in_list_view: 1, reqd: 1 },
 				],
 				data: [{ qty_to_split: 1, pieces_per_split: total_qty }],

@@ -5,37 +5,69 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "tab_design_info",
   "naming_series",
   "design_no",
   "article_name",
   "column_break_1",
   "sizes",
   "default_size",
-  "section_warp",
-  "warp_recipe",
-  "section_weft",
-  "weft_recipe",
+  "pieces_per_roll",
+  "section_finished_item",
+  "finished_item",
+
+  "tab_yarn_spec",
+  "planned_qty",
+  "total_warp_ends",
+  "column_break_yarn_totals",
+  "total_yarn_kg",
+  "section_warp_yarn",
+  "warp_yarns",
+  "section_weft_yarn",
+  "weft_yarns",
+  "section_flower_yarn",
+  "flower_yarns",
+  "section_repeat_pattern",
+  "repeat_pattern_image",
+
+  "tab_materials",
   "section_chemical",
   "finish_chem_qty",
   "wash_agent_qty",
   "flower_chem_qty",
   "chemical_materials_qty_kg",
   "section_packing",
-  "pieces_per_roll",
   "branded_box_item",
   "label_item",
   "sticker_item",
+
+  "tab_stages",
+  "section_stage_config",
+  "stage_configuration",
   "section_bom",
   "bom_level_1",
   "bom_level_2",
   "bom_level_3",
   "bom_level_4",
+
+  "tab_beams",
+  "section_beam_allocation",
+  "beam_allocation",
+
+  "tab_legacy",
+  "section_warp",
+  "warp_recipe",
+  "section_weft",
+  "weft_recipe",
   "section_status",
-  "is_active",
-  "section_stage_config",
-  "stage_configuration"
+  "is_active"
  ],
  "fields": [
+  {
+   "fieldname": "tab_design_info",
+   "fieldtype": "Tab Break",
+   "label": "Design Info"
+  },
   {
    "fieldname": "naming_series",
    "fieldtype": "Select",
@@ -75,32 +107,107 @@
    "label": "Default Size"
   },
   {
-   "fieldname": "section_warp",
+   "default": "115",
+   "fieldname": "pieces_per_roll",
+   "fieldtype": "Int",
+   "label": "Expected Pieces per Roll"
+  },
+  {
+   "fieldname": "section_finished_item",
    "fieldtype": "Section Break",
-   "label": "Warp Recipe"
+   "label": "Finished Item"
   },
   {
-   "fieldname": "warp_recipe",
+   "fieldname": "finished_item",
    "fieldtype": "Link",
-   "label": "Warp Recipe",
-   "options": "Warp Recipe"
+   "label": "Finished Item (Grade A)",
+   "options": "Item",
+   "description": "Auto-resolved from Article + Default Size + Grade A. Override if needed."
+  },
+
+  {
+   "fieldname": "tab_yarn_spec",
+   "fieldtype": "Tab Break",
+   "label": "Yarn Specification"
   },
   {
-   "fieldname": "section_weft",
+   "fieldname": "planned_qty",
+   "fieldtype": "Int",
+   "label": "Planned Qty (Pieces)",
+   "description": "How many pieces this yarn specification covers. Used to auto-calculate Rate (Kg/Piece) for each yarn row."
+  },
+  {
+   "fieldname": "total_warp_ends",
+   "fieldtype": "Int",
+   "label": "Total Warp Ends",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_yarn_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_yarn_kg",
+   "fieldtype": "Float",
+   "label": "Total Yarn (Kg)",
+   "read_only": 1,
+   "description": "Sum of all warp + weft + flower yarn."
+  },
+  {
+   "fieldname": "section_warp_yarn",
    "fieldtype": "Section Break",
-   "hidden": 1,
-   "label": "Weft Recipe"
+   "label": "Warp Yarn"
   },
   {
-   "fieldname": "weft_recipe",
-   "fieldtype": "Link",
-   "label": "Weft Recipe",
-   "options": "Weft Recipe"
+   "fieldname": "warp_yarns",
+   "fieldtype": "Table",
+   "label": "Warp Yarn",
+   "options": "Design Master Warp Yarn"
+  },
+  {
+   "fieldname": "section_weft_yarn",
+   "fieldtype": "Section Break",
+   "label": "Weft Yarn"
+  },
+  {
+   "fieldname": "weft_yarns",
+   "fieldtype": "Table",
+   "label": "Weft Yarn",
+   "options": "Design Master Weft Yarn"
+  },
+  {
+   "fieldname": "section_flower_yarn",
+   "fieldtype": "Section Break",
+   "label": "Flower Yarn (Decorative)"
+  },
+  {
+   "fieldname": "flower_yarns",
+   "fieldtype": "Table",
+   "label": "Flower Yarn",
+   "options": "Design Master Flower Yarn"
+  },
+  {
+   "fieldname": "section_repeat_pattern",
+   "fieldtype": "Section Break",
+   "label": "Warp Repeat Pattern",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "repeat_pattern_image",
+   "fieldtype": "Attach Image",
+   "label": "Repeat Pattern",
+   "description": "Attach the thread-by-thread repeat pattern image or PDF from the paper Work Order."
+  },
+
+  {
+   "fieldname": "tab_materials",
+   "fieldtype": "Tab Break",
+   "label": "Materials & Packing"
   },
   {
    "fieldname": "section_chemical",
    "fieldtype": "Section Break",
-   "label": "Chemical Consumption"
+   "label": "Chemical Consumption (per roll)"
   },
   {
    "default": "5",
@@ -129,13 +236,7 @@
   {
    "fieldname": "section_packing",
    "fieldtype": "Section Break",
-   "label": "Packing"
-  },
-  {
-   "default": "50",
-   "fieldname": "pieces_per_roll",
-   "fieldtype": "Int",
-   "label": "Expected Pieces per Roll"
+   "label": "Packing (per piece)"
   },
   {
    "fieldname": "branded_box_item",
@@ -155,8 +256,14 @@
    "label": "Sticker Item",
    "options": "Item"
   },
+
   {
-   "description": "Define all production stages for this design. Each row = one stage. System reads this to show QI buttons, create Roll Tickets, trigger Repack, and auto-create BOMs. Adding a row here adds a new stage with zero code change.",
+   "fieldname": "tab_stages",
+   "fieldtype": "Tab Break",
+   "label": "Production Stages"
+  },
+  {
+   "description": "Auto-filled from DESAR Settings template on new documents. Each row = one production stage.",
    "fieldname": "section_stage_config",
    "fieldtype": "Section Break",
    "label": "Production Stage Configuration"
@@ -201,6 +308,55 @@
    "options": "BOM",
    "read_only": 1
   },
+
+  {
+   "fieldname": "tab_beams",
+   "fieldtype": "Tab Break",
+   "label": "Beam Allocation"
+  },
+  {
+   "fieldname": "section_beam_allocation",
+   "fieldtype": "Section Break",
+   "label": "Beam & Loom Assignment",
+   "description": "Optional. Assign beams to specific looms. This mirrors the paper Work Order's beam allocation table."
+  },
+  {
+   "fieldname": "beam_allocation",
+   "fieldtype": "Table",
+   "label": "Beam Allocation",
+   "options": "Design Master Beam"
+  },
+
+  {
+   "fieldname": "tab_legacy",
+   "fieldtype": "Tab Break",
+   "label": "Legacy",
+   "hidden": 1
+  },
+  {
+   "fieldname": "section_warp",
+   "fieldtype": "Section Break",
+   "label": "Warp Recipe (Legacy)"
+  },
+  {
+   "fieldname": "warp_recipe",
+   "fieldtype": "Link",
+   "label": "Warp Recipe",
+   "options": "Warp Recipe",
+   "description": "Legacy: used when inline yarn tables are empty. New designs should use the Yarn Specification tab instead."
+  },
+  {
+   "fieldname": "section_weft",
+   "fieldtype": "Section Break",
+   "hidden": 1,
+   "label": "Weft Recipe"
+  },
+  {
+   "fieldname": "weft_recipe",
+   "fieldtype": "Link",
+   "label": "Weft Recipe",
+   "options": "Weft Recipe"
+  },
   {
    "fieldname": "section_status",
    "fieldtype": "Section Break"
@@ -213,7 +369,7 @@
   }
  ],
  "links": [],
- "modified": "2026-08-05 16:32:30.774765",
+ "modified": "2026-08-10 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Desar Manufacturing",
  "name": "Design Master",

@@ -88,3 +88,14 @@
     z-index: 9999;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }
+
+/* ── Production Order — pulse the valid next-action button ──────────────── */
+@keyframes desar-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(46, 134, 171, 0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(46, 134, 171, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(46, 134, 171, 0); }
+}
+.desar-roll-chains .btn-primary,
+.desar-dashboard-card .btn-primary {
+    animation: desar-pulse 1.6s infinite;
+}

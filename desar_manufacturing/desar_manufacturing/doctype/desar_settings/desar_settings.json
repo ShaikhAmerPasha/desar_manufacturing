@@ -26,9 +26,20 @@
   "grey_roll_item",
   "finished_roll_item",
   "shemagh_scrap_item",
+  "section_design_defaults",
+  "default_box_item",
+  "default_label_item",
+  "default_sticker_item",
+  "col_break_design_defaults",
+  "default_chemical_qty_kg",
+  "default_pieces_per_roll",
+  "section_stage_template",
+  "default_stage_template",
   "section_auto",
   "auto_create_roll_ticket",
-  "auto_create_repack_entry"
+  "auto_create_repack_entry",
+  "section_grade_config",
+  "grade_configuration"
  ],
  "fields": [
   {
@@ -158,6 +169,58 @@
    "default": "Shemagh Scrap"
   },
   {
+   "fieldname": "section_design_defaults",
+   "fieldtype": "Section Break",
+   "label": "New Design Defaults",
+   "description": "These values auto-fill into every new Design Master. Set them once and forget."
+  },
+  {
+   "fieldname": "default_box_item",
+   "fieldtype": "Link",
+   "label": "Default Box Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "default_label_item",
+   "fieldtype": "Link",
+   "label": "Default Label/Stamp Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "default_sticker_item",
+   "fieldtype": "Link",
+   "label": "Default Sticker Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "col_break_design_defaults",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_chemical_qty_kg",
+   "fieldtype": "Float",
+   "label": "Default Chemical Materials (Kg)",
+   "default": "8.7"
+  },
+  {
+   "fieldname": "default_pieces_per_roll",
+   "fieldtype": "Int",
+   "label": "Default Pieces per Roll",
+   "default": "115"
+  },
+  {
+   "fieldname": "section_stage_template",
+   "fieldtype": "Section Break",
+   "label": "Default Stage Template",
+   "description": "These rows auto-fill into every new Design Master's Stage Configuration. Configure once, and every new design gets the same 5-stage factory path automatically."
+  },
+  {
+   "fieldname": "default_stage_template",
+   "fieldtype": "Table",
+   "label": "Default Stage Template",
+   "options": "DESAR Default Stage"
+  },
+  {
    "fieldname": "section_auto",
    "fieldtype": "Section Break",
    "label": "Automation"
@@ -178,7 +241,7 @@
    "fieldname": "section_grade_config",
    "fieldtype": "Section Break",
    "label": "Grade Configuration",
-   "description": "Define all grades, their valuation %, target warehouses, and item suffixes. Adding a row here makes a new grade available across the entire system \u2014 no code change needed."
+   "description": "Define all grades, their valuation %, target warehouses, and item suffixes."
   },
   {
    "fieldname": "grade_configuration",
@@ -189,7 +252,7 @@
   }
  ],
  "icon": "fa fa-cog",
- "modified": "2026-05-01 00:00:00.000000",
+ "modified": "2026-08-10 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Desar Manufacturing",
  "name": "DESAR Settings",
