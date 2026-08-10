@@ -1,0 +1,19 @@
+{
+ "name": "DESAR Default Stage",
+ "doctype": "DocType",
+ "module": "Desar Manufacturing",
+ "istable": 1,
+ "editable_grid": 1,
+ "track_changes": 0,
+ "fields": [
+  {"fieldname": "stage_seq", "fieldtype": "Int", "label": "Seq", "reqd": 1, "in_list_view": 1, "columns": 1},
+  {"fieldname": "stage_name", "fieldtype": "Data", "label": "Stage Name", "reqd": 1, "in_list_view": 1, "columns": 2},
+  {"fieldname": "output_item", "fieldtype": "Link", "label": "Output Item", "options": "Item", "in_list_view": 1, "columns": 2},
+  {"fieldname": "output_qty", "fieldtype": "Float", "label": "Output Qty", "default": "1", "in_list_view": 1, "columns": 1},
+  {"fieldname": "qi_required", "fieldtype": "Check", "label": "QI Required", "in_list_view": 1, "columns": 1},
+  {"fieldname": "qi_template", "fieldtype": "Link", "label": "QI Template", "options": "Quality Inspection Template"},
+  {"fieldname": "roll_ticket_trigger", "fieldtype": "Check", "label": "Creates Roll Ticket"},
+  {"fieldname": "skip_transfer", "fieldtype": "Check", "label": "Skip Transfer"},
+  {"fieldname": "is_final_stage", "fieldtype": "Check", "label": "Final Stage", "in_list_view": 1, "columns": 1}
+ ]
+}

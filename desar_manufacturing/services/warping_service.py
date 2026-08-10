@@ -12,6 +12,7 @@ from frappe import _
 from frappe.utils import cint, nowdate
 
 from desar_manufacturing.services import batch_service, stock_entry_service, wo_split_helpers as wo
+from desar_manufacturing.services.roll_service import refresh_po_status
 from desar_manufacturing.utils.doc_utils import is_submitted
 from desar_manufacturing.utils.batch_utils import get_batch_from_row
 
@@ -50,6 +51,7 @@ def start_warping(production_order: str) -> dict:
 
 	po.db_set("warping_transfer_se", se.name, update_modified=False)
 	po.db_set("warping_status", "In Progress", update_modified=True)
+	refresh_po_status(po)
 
 	return {
 		"status":      "awaiting_transfer",
@@ -84,6 +86,7 @@ def complete_warping(production_order: str) -> dict:
 	po.db_set("warping_manufacture_se", se_mfg.name, update_modified=False)
 	po.db_set("warping_batch",          batch_no,    update_modified=False)
 	po.db_set("warping_status",         "Completed", update_modified=True)
+	refresh_po_status(po)
 
 	return {"status": "completed", "batch_no": batch_no}
 
@@ -141,6 +144,7 @@ def split_beam(production_order: str, rows: list) -> dict:
 		po.db_set("beam_split_se",     se_name,     update_modified=False)
 		po.db_set("roll_count",        roll_count,  update_modified=False)
 		po.db_set("beam_split_status", "Completed", update_modified=True)
+		refresh_po_status(po)
 	except Exception:
 		# Savepoint was set before the Repack SE was created, so rolling back
 		# to it erases the SE (and its stock ledger entries) entirely rather

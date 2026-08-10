@@ -30,7 +30,6 @@
    "fieldtype": "Link",
    "label": "Output Item",
    "options": "Item",
-   "reqd": 1,
    "in_list_view": 1,
    "columns": 2,
    "description": "Item produced by this stage. Warping\u2192Warping Beam, Weaving\u2192Grey Roll, etc."

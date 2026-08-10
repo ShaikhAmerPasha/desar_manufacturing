@@ -17,6 +17,7 @@
   "pieces_per_roll",
   "roll_count",
   "status",
+  "current_stage",
   "section_warping",
   "warping_wo",
   "warping_batch",
@@ -106,6 +107,15 @@
    "options": "Draft\nSubmitted\nIn Progress\nCompleted\nCancelled",
    "default": "Draft",
    "read_only": 1
+  },
+  {
+   "fieldname": "current_stage",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Current Stage",
+   "read_only": 1,
+   "description": "The bottleneck stage — earliest stage that still has rolls not yet through it, with a count. e.g. \"Grey Roll (3/5 rolls)\"."
   },
   {
    "fieldname": "section_warping",

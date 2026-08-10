@@ -1,0 +1,13 @@
+{
+ "name": "Design Master Beam",
+ "doctype": "DocType",
+ "module": "Desar Manufacturing",
+ "istable": 1,
+ "editable_grid": 1,
+ "track_changes": 0,
+ "fields": [
+  {"fieldname": "beam_no", "fieldtype": "Int", "label": "Beam #", "reqd": 1, "in_list_view": 1, "columns": 2},
+  {"fieldname": "beam_length_m", "fieldtype": "Float", "label": "Beam Length (m)", "reqd": 1, "in_list_view": 1, "columns": 3},
+  {"fieldname": "loom_no", "fieldtype": "Data", "label": "Loom No.", "in_list_view": 1, "columns": 2, "description": "Loom/Machine this beam is assigned to"}
+ ]
+}
