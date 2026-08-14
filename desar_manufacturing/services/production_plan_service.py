@@ -152,7 +152,19 @@ def _resolve_total_qty(production_plan: str, packing_item: str, wos: list, stage
 	grey_item = wo.find_item_by_keywords(stage_configs, ("grey", "weav", "loom"))
 	grey_wo   = wo.find_combined_wo(wos, grey_item) if grey_item else ""
 	roll_estimate = cint(frappe.db.get_value("Work Order", grey_wo, "qty")) if grey_wo else 0
-	return (roll_estimate * pieces_per_roll) or pieces_per_roll
+	if roll_estimate:
+		return roll_estimate * pieces_per_roll
+
+	# Neither the Sales Order match nor the roll-estimate formula produced a
+	# qty — returning bare `pieces_per_roll` here would silently set total_qty
+	# to a number with no connection to what was actually ordered (Beam
+	# Split's own total-match validation would then pass against a wrong
+	# total). Fail loudly instead.
+	frappe.throw(_(
+		"Could not determine Total Qty for packing item {0} on Production Plan {1} — "
+		"no matching Sales Order line and no Grey Roll Work Order to estimate from. "
+		"Set it manually."
+	).format(packing_item, production_plan))
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -1,1 +1,2 @@
 desar_manufacturing.patches.v3_0_reimport_roll_ticket
+desar_manufacturing.patches.v3_1_fix_weaving_stage_and_placeholder_warehouses

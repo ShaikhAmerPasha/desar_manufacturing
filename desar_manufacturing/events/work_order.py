@@ -183,7 +183,7 @@ def _autofill_warehouses(doc):
             ) or ""
 
         stage_lower = stage_name.lower()
-        wh = _get_warehouses_for_stage(stage_lower, settings)
+        wh = _get_warehouses_for_stage(stage_lower, settings, default_wip)
 
         if (not doc.source_warehouse) and wh.get("source"):
             doc.source_warehouse = wh["source"]
@@ -227,7 +227,7 @@ def _apply_skip_transfer(doc):
                         message=frappe.get_traceback())
 
 
-def _get_warehouses_for_stage(stage_lower: str, settings) -> dict:
+def _get_warehouses_for_stage(stage_lower: str, settings, default_wip: str = "") -> dict:
     """Return source/wip/target warehouses for a stage."""
     def s(field, fallback):
         return settings.get(field) or fallback
@@ -263,8 +263,19 @@ def _get_warehouses_for_stage(stage_lower: str, settings) -> dict:
             "target": s("fg_grade_a_warehouse", "Finished Goods Grade A - ST"),
         }
     else:
+        # Unrecognized stage_name (doesn't contain warp/weav/dye/finish/pack) —
+        # fall back to the site's real Manufacturing Settings default WIP
+        # warehouse instead of a hardcoded placeholder that may not exist on
+        # this site (was "Work In Progress - ST", never created outside the
+        # original dev environment).
+        frappe.log_error(
+            title="DESAR: unrecognized WO stage for warehouse autofill",
+            message=f"stage_lower={stage_lower!r} did not match any known stage "
+                    f"keyword; falling back to default WIP warehouse {default_wip!r}. "
+                    f"Check DESAR Stage Configuration.stage_name for this item.",
+        )
         return {
             "source": "",
-            "wip":    "Work In Progress - ST",
-            "target": "Work In Progress - ST",
+            "wip":    default_wip,
+            "target": default_wip,
         }

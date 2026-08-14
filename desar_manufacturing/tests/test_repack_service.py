@@ -43,6 +43,7 @@ class TestSourceRowHasExplicitValuation(unittest.TestCase):
         with patch.object(RepackService, "_get_base_item", return_value="Shemagh-ZEP-55-A"), \
              patch("desar_manufacturing.services.repack_service.StockEntryRepository.get_valuation_rate", return_value=42.5), \
              patch.object(RepackService, "_read_grade_readings_from_qi", return_value=[{"grade_code": "A", "qty": 100}]), \
+             patch.object(RepackService, "_stock_uom", return_value="Nos"), \
              patch("frappe.db.exists", return_value=True):
             grade_config = [frappe._dict({
                 "grade_code": "A", "is_scrap": 0, "valuation_pct": 100,
@@ -64,6 +65,7 @@ class TestSourceRowHasExplicitValuation(unittest.TestCase):
         with patch.object(RepackService, "_get_base_item", return_value="Shemagh-ZEP-55-A"), \
              patch("desar_manufacturing.services.repack_service.StockEntryRepository.get_valuation_rate", return_value=42.5), \
              patch("desar_manufacturing.services.repack_service.SettingsManager.get_warehouse", return_value="FG Grade A - ST"), \
+             patch.object(RepackService, "_stock_uom", return_value="Nos"), \
              patch("frappe.db.exists", return_value=True):
             items, total = RepackService._build_items_legacy(qi_doc, "FG Grade A - ST")
 

@@ -52,9 +52,18 @@ class BOMService:
     @classmethod
     def _create_boms_dynamic(cls, dm) -> dict:
         """
-        Create one BOM per stage from Stage Configuration.
-        Saves BOM name back to Stage Configuration bom_no field.
-        Uses input_item from previous stage as component.
+        Create ONE stage's BOM per call, left in Draft for manual review, then
+        stop — do not attempt the next stage.
+
+        Each stage's BOM pins its input-material row to the PREVIOUS stage's
+        BOM via bom_no (see comment below on why), and ERPNext refuses to
+        accept a bom_no reference to a BOM that isn't submitted yet. Since
+        BOMs here are intentionally left in Draft for review (not
+        auto-submitted), attempting all stages in one pass always fails from
+        stage 2 onward — the previous stage is never submitted by the time
+        the next one is built. So: create the next not-yet-created stage's
+        BOM, tell the user to review+submit it, and stop. Calling this again
+        after that BOM is submitted creates the following stage, and so on.
         """
         stages = sorted(dm.stage_configuration, key=lambda s: s.stage_seq or 0)
         results = {}
@@ -63,10 +72,21 @@ class BOMService:
 
         for stage in stages:
             if stage.bom_no and frappe.db.exists("BOM", stage.bom_no):
+                bom_docstatus = frappe.db.get_value("BOM", stage.bom_no, "docstatus")
+                if bom_docstatus != 1:
+                    frappe.msgprint(
+                        _("BOM <b>{0}</b> for stage <b>{1}</b> is still in Draft. "
+                          "Review and submit it, then click Create All BOMs again "
+                          "to create the next stage's BOM.").format(
+                            frappe.utils.get_link_to_form("BOM", stage.bom_no), stage.stage_name
+                        ),
+                        indicator="orange",
+                    )
+                    return results
                 prev_output_item = stage.output_item
                 prev_bom_no = stage.bom_no
                 results[stage.stage_name] = stage.bom_no
-                continue  # BOM already exists
+                continue  # this stage's BOM is already created and submitted
 
             output_item = stage.output_item
             if not output_item:
@@ -83,7 +103,9 @@ class BOMService:
             # multi-level explosion falls back to whichever BOM currently
             # happens to be flagged default for the shared item name (e.g.
             # "Grey Roll"), which is wrong the moment more than one design
-            # shares that item.
+            # shares that item. Safe to reference here: we only ever reach
+            # this point once the previous stage's BOM is confirmed submitted
+            # (the docstatus check above stops the loop otherwise).
             if prev_output_item:
                 source_wh = cls._get_source_wh_for_stage(stage_lower)
                 bom_items.append(cls._make_bom_item(
@@ -120,7 +142,8 @@ class BOMService:
                         "time_in_mins": 60,
                     })
 
-            # Create BOM
+            # Create this stage's BOM, then stop — the next stage needs THIS
+            # one submitted first (see docstring above).
             try:
                 bom_name = cls._insert_and_submit_bom({
                     "item":     output_item,
@@ -137,22 +160,40 @@ class BOMService:
                     "DESAR Stage Configuration", stage.name, "bom_no", bom_name
                 )
                 results[stage.stage_name] = bom_name
-                prev_output_item = output_item
-                prev_bom_no = bom_name
+
+                is_last_stage = stage is stages[-1]
+                if is_last_stage:
+                    frappe.msgprint(
+                        _("BOM <b>{0}</b> created in Draft for the final stage "
+                          "({1}). Review and submit it — all stages done.").format(
+                            frappe.utils.get_link_to_form("BOM", bom_name), stage.stage_name
+                        ),
+                        alert=True,
+                    )
+                else:
+                    frappe.msgprint(
+                        _("BOM <b>{0}</b> created in Draft for stage <b>{1}</b>. "
+                          "Review and submit it, then click Create All BOMs again "
+                          "to create the next stage's BOM.").format(
+                            frappe.utils.get_link_to_form("BOM", bom_name), stage.stage_name
+                        ),
+                        alert=True,
+                    )
 
             except Exception:
                 frappe.log_error(
                     title=f"DESAR: BOM creation failed for stage {stage.stage_name}",
                     message=frappe.get_traceback()
                 )
+                frappe.msgprint(
+                    _("BOM creation FAILED for stage <b>{0}</b> — check Error Log.").format(
+                        stage.stage_name
+                    ),
+                    indicator="red",
+                )
 
-        if results:
-            frappe.msgprint(
-                _("Created {0} BOM(s) in Draft: {1}").format(
-                    len(results), ", ".join(results.values())
-                ),
-                alert=True,
-            )
+            return results  # always stop after (attempting) one stage
+
         return results
 
     @classmethod

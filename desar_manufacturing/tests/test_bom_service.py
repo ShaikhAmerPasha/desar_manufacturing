@@ -125,9 +125,12 @@ class TestLegacyChainPinsUpstreamBom(unittest.TestCase):
 
 
 class TestDynamicModeChainsBomNoAcrossStages(unittest.TestCase):
-    """Reproduces the live bug: with 2 designs sharing "Grey Roll" as an
-    output item, the 2nd design's Finished Roll BOM must reference its OWN
-    Grey Roll BOM, not whichever one is currently the item's default."""
+    """Reproduces the live bug: a stage's BOM references the previous
+    stage's bom_no, and ERPNext refuses that reference until the previous
+    BOM is submitted. Since BOMs are created in Draft for manual review
+    (not auto-submitted), _create_boms_dynamic must create ONE stage's BOM
+    per call and stop — never attempt a stage whose predecessor isn't
+    submitted yet, and never build two stages' BOMs in the same call."""
 
     def _stage(self, seq, name, output_item, bom_no=None, is_final=False):
         return frappe._dict({
@@ -141,8 +144,8 @@ class TestDynamicModeChainsBomNoAcrossStages(unittest.TestCase):
     @patch.object(BOMService, "_get_default_workstation", return_value="WS-1")
     @patch.object(BOMService, "_get_source_wh_for_stage", return_value="WH-1")
     @patch.object(BOMService, "_insert_and_submit_bom")
-    def test_second_stage_pins_first_stages_bom(self, mock_insert, mock_source_wh, mock_ws, mock_msg, mock_set_value):
-        mock_insert.side_effect = ["BOM-Warping-XXX", "BOM-Grey-XXX"]
+    def test_first_call_creates_only_first_stage_and_stops(self, mock_insert, mock_source_wh, mock_ws, mock_msg, mock_set_value):
+        mock_insert.return_value = "BOM-Warping-XXX"
         dm = _dm(
             design_no="561", article_name="Atlas", warp_recipe=None,
             stage_configuration=[
@@ -150,26 +153,56 @@ class TestDynamicModeChainsBomNoAcrossStages(unittest.TestCase):
                 self._stage(2, "Grey Roll", "Grey Roll"),
             ],
         )
-        BOMService._create_boms_dynamic(dm)
+        results = BOMService._create_boms_dynamic(dm)
 
-        grey_roll_call = mock_insert.call_args_list[1][0][0]
-        self.assertEqual(grey_roll_call["items"][0]["bom_no"], "BOM-Warping-XXX")
+        mock_insert.assert_called_once()
+        self.assertEqual(results, {"Warping": "BOM-Warping-XXX"})
 
     @patch("frappe.db.set_value")
     @patch("frappe.msgprint")
-    def test_existing_stage_bom_still_chains_to_next(self, mock_msg, mock_set_value):
-        """A stage whose BOM already exists (skipped, not recreated) must
-        still hand its bom_no down to the next stage."""
+    @patch.object(BOMService, "_get_default_workstation", return_value="WS-1")
+    @patch.object(BOMService, "_get_source_wh_for_stage", return_value="WH-1")
+    @patch.object(BOMService, "_insert_and_submit_bom")
+    def test_second_stage_pins_first_stages_bom_once_first_is_submitted(self, mock_insert, mock_source_wh, mock_ws, mock_msg, mock_set_value):
+        """Once stage 1's BOM is confirmed SUBMITTED (docstatus=1), the next
+        call creates stage 2's BOM referencing it via bom_no."""
+        mock_insert.return_value = "BOM-Grey-XXX"
+        dm = _dm(
+            design_no="561", article_name="Atlas", warp_recipe=None,
+            stage_configuration=[
+                self._stage(1, "Warping", "Warping Beam", bom_no="BOM-Warping-XXX"),
+                self._stage(2, "Grey Roll", "Grey Roll"),
+            ],
+        )
         with patch("frappe.db.exists", return_value=True), \
-             patch.object(BOMService, "_get_source_wh_for_stage", return_value="WH-1"), \
-             patch.object(BOMService, "_insert_and_submit_bom", return_value="BOM-Grey-NEW") as mock_insert:
-            dm = _dm(
-                design_no="561", article_name="Atlas", warp_recipe=None,
-                stage_configuration=[
-                    self._stage(1, "Warping", "Warping Beam", bom_no="BOM-Warping-EXISTING"),
-                    self._stage(2, "Grey Roll", "Grey Roll"),
-                ],
-            )
-            BOMService._create_boms_dynamic(dm)
-            data = mock_insert.call_args[0][0]
-            self.assertEqual(data["items"][0]["bom_no"], "BOM-Warping-EXISTING")
+             patch("frappe.db.get_value", return_value=1):  # docstatus=1, submitted
+            results = BOMService._create_boms_dynamic(dm)
+
+        mock_insert.assert_called_once()
+        grey_roll_call = mock_insert.call_args[0][0]
+        self.assertEqual(grey_roll_call["items"][0]["bom_no"], "BOM-Warping-XXX")
+        # results includes stage 1 (already-submitted, confirmed) AND stage 2 (newly created)
+        self.assertEqual(results, {"Warping": "BOM-Warping-XXX", "Grey Roll": "BOM-Grey-XXX"})
+
+    @patch("frappe.db.set_value")
+    @patch("frappe.msgprint")
+    @patch.object(BOMService, "_insert_and_submit_bom")
+    def test_stops_and_does_not_create_next_stage_while_previous_is_draft(self, mock_insert, mock_msg, mock_set_value):
+        """Stage 1's BOM exists but is still Draft (docstatus=0) — must NOT
+        attempt stage 2's BOM at all, and must tell the user to submit stage
+        1 first."""
+        dm = _dm(
+            design_no="561", article_name="Atlas", warp_recipe=None,
+            stage_configuration=[
+                self._stage(1, "Warping", "Warping Beam", bom_no="BOM-Warping-DRAFT"),
+                self._stage(2, "Grey Roll", "Grey Roll"),
+            ],
+        )
+        with patch("frappe.db.exists", return_value=True), \
+             patch("frappe.db.get_value", return_value=0):  # docstatus=0, still Draft
+            results = BOMService._create_boms_dynamic(dm)
+
+        mock_insert.assert_not_called()
+        self.assertEqual(results, {})
+        mock_msg.assert_called_once()
+        self.assertIn("Draft", mock_msg.call_args[0][0])

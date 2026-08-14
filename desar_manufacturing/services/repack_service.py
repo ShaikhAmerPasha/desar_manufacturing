@@ -40,6 +40,14 @@ class RepackService:
     GRADE_B_RATIO = 0.60
 
     @classmethod
+    def _stock_uom(cls, item_code: str) -> str:
+        """Real stock UOM for item_code — never assume a hardcoded UOM name exists on-site."""
+        uom = frappe.db.get_value("Item", item_code, "stock_uom")
+        if not uom:
+            frappe.throw(_("Item {0} has no Stock UOM set.").format(item_code))
+        return uom
+
+    @classmethod
     def create_from_final_qi(cls, qi_doc) -> Optional[str]:
         """
         Auto-create Repack SE from a submitted Final Packing QI.
@@ -153,14 +161,8 @@ class RepackService:
         if not total:
             return [], 0
 
-        items = [{
-            "item_code":               base_item,
-            "s_warehouse":             wh_src,
-            "qty":                     total,
-            "uom":                     "Pcs",
-            "set_basic_rate_manually": 1,
-            "basic_rate":              val_rate,
-        }]
+        output_rows = []
+        unaccounted_qty = 0
 
         for reading in grade_readings:
             qty = reading["qty"]
@@ -179,23 +181,43 @@ class RepackService:
 
             item_code = cls._derive_item_with_suffix(base_item, grade.item_suffix) if grade.item_suffix else None
             if not item_code or not frappe.db.exists("Item", item_code):
+                # Item missing — this grade's qty must NOT be silently consumed
+                # from source stock with no output row (that's an invisible
+                # stock/valuation write-off). Pull it back out of `total`.
+                unaccounted_qty += qty
                 frappe.msgprint(
-                    _("Item for Grade {0} not found — skipping in Repack.").format(grade.grade_code),
+                    _("Item for Grade {0} not found — {1} qty excluded from Repack, "
+                      "NOT consumed from stock. Fix the item and repack manually.").format(
+                        grade.grade_code, qty
+                    ),
                     alert=True, indicator="orange",
                 )
                 continue
 
-            items.append({
+            output_rows.append({
                 "item_code":               item_code,
                 "t_warehouse":             grade.target_warehouse,
                 "qty":                     qty,
-                "uom":                     "Pcs",
+                "uom":                     cls._stock_uom(item_code),
                 "is_finished_item":        1,
                 "set_basic_rate_manually": 1,
                 "basic_rate":              round(val_rate * flt(grade.valuation_pct) / 100, 2),
             })
 
-        return items, total
+        consumed_total = total - unaccounted_qty
+        if not consumed_total:
+            return [], 0
+
+        items = [{
+            "item_code":               base_item,
+            "s_warehouse":             wh_src,
+            "qty":                     consumed_total,
+            "uom":                     cls._stock_uom(base_item),
+            "set_basic_rate_manually": 1,
+            "basic_rate":              val_rate,
+        }] + output_rows
+
+        return items, consumed_total
 
     @classmethod
     def _read_grade_readings_from_qi(cls, qi_doc) -> list:
@@ -275,26 +297,34 @@ class RepackService:
 
         if grade_b and item_b and not frappe.db.exists("Item", item_b):
             frappe.msgprint(
-                _("Grade B item <b>{0}</b> does not exist. Grade B skipped.").format(item_b),
+                _("Grade B item <b>{0}</b> does not exist — {1} qty excluded from Repack, "
+                  "NOT consumed from stock. Fix the item and repack manually.").format(item_b, grade_b),
                 alert=True, indicator="orange",
             )
+            # Missing item — don't silently consume its qty from source stock
+            # with no output row (invisible stock/valuation write-off).
+            total -= grade_b
+            grade_b = 0
             item_b = None
+
+        if not total:
+            return [], 0
 
         val_rate = StockEntryRepository.get_valuation_rate(item_a, wh_src)
 
         items = [{
-            "item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": "Pcs",
+            "item_code": item_a, "s_warehouse": wh_src, "qty": total, "uom": cls._stock_uom(item_a),
             "set_basic_rate_manually": 1, "basic_rate": val_rate,
         }]
 
         if grade_a:
             items.append({
-                "item_code": item_a, "t_warehouse": wh_a, "qty": grade_a, "uom": "Pcs",
+                "item_code": item_a, "t_warehouse": wh_a, "qty": grade_a, "uom": cls._stock_uom(item_a),
                 "is_finished_item": 1, "set_basic_rate_manually": 1, "basic_rate": val_rate,
             })
         if grade_b and item_b:
             items.append({
-                "item_code": item_b, "t_warehouse": wh_b, "qty": grade_b, "uom": "Pcs",
+                "item_code": item_b, "t_warehouse": wh_b, "qty": grade_b, "uom": cls._stock_uom(item_b),
                 "is_finished_item": 1, "set_basic_rate_manually": 1,
                 "basic_rate": round(val_rate * cls.GRADE_B_RATIO, 2),
             })

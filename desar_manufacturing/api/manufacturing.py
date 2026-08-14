@@ -26,7 +26,8 @@ def create_quality_inspection(work_order: str, stage: str) -> str:
     valid_stages = {"grey", "finishing", "final"}
     if stage not in valid_stages:
         frappe.throw(_("Invalid stage '{0}'. Valid values: {1}").format(stage, ", ".join(sorted(valid_stages))))
-    frappe.has_permission("Quality Inspection", "create", throw=True)
+    from desar_manufacturing.api.production_order import MUTATE_ROLES
+    frappe.only_for(MUTATE_ROLES)
     wo_docstatus = frappe.db.get_value("Work Order", work_order, "docstatus")
     if wo_docstatus is None:
         frappe.throw(_("Work Order <b>{0}</b> not found").format(work_order))
@@ -35,6 +36,8 @@ def create_quality_inspection(work_order: str, stage: str) -> str:
     se_name = WorkOrderRepository.get_manufacture_se(work_order)
     if not se_name:
         frappe.throw(_("No submitted Manufacture entry found for <b>{0}</b>.<br>Please finish the Work Order first.").format(work_order))
+    if frappe.db.exists("Quality Inspection", {"reference_name": se_name, "docstatus": ["!=", 2]}):
+        frappe.throw(_("A Quality Inspection already exists for <b>{0}</b>.").format(se_name))
     wo_context = WorkOrderRepository.get_design_context(work_order)
     config = _get_stage_config(stage, wo_context)
     if not config.get("item_code"):
@@ -94,7 +97,8 @@ def _load_readings_from_template(qi, template_name: str):
 def create_boms_from_design(design_master: str) -> dict:
     if not design_master:
         frappe.throw(_("Design Master is required"))
-    frappe.has_permission("BOM", "create", throw=True)
+    from desar_manufacturing.api.production_order import MUTATE_ROLES
+    frappe.only_for(MUTATE_ROLES)
     from desar_manufacturing.services.bom_service import BOMService
     return BOMService.create_all_boms(design_master)
 
@@ -180,13 +184,16 @@ def _get_consumed_batch(se_name: str, item_code: str) -> str:
 def create_quality_inspection_dynamic(work_order: str, stage_name: str) -> str:
     if not work_order or not stage_name:
         frappe.throw(_("Work Order and Stage Name are required"))
-    frappe.has_permission("Quality Inspection", "create", throw=True)
+    from desar_manufacturing.api.production_order import MUTATE_ROLES
+    frappe.only_for(MUTATE_ROLES)
     wo_docstatus = frappe.db.get_value("Work Order", work_order, "docstatus")
     if cint(wo_docstatus) != 1:
         frappe.throw(_("Work Order must be submitted"))
     se_name = WorkOrderRepository.get_manufacture_se(work_order)
     if not se_name:
         frappe.throw(_("No Manufacture entry found for {0}. Finish the Work Order first.").format(work_order))
+    if frappe.db.exists("Quality Inspection", {"reference_name": se_name, "docstatus": ["!=", 2]}):
+        frappe.throw(_("A Quality Inspection already exists for <b>{0}</b>.").format(se_name))
     design_master = frappe.db.get_value("Work Order", work_order, "custom_design_master")
     stage_config = None
     if design_master:

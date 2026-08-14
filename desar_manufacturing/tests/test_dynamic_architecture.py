@@ -475,11 +475,17 @@ class TestBackwardCompatibility(unittest.TestCase):
         RepackService._build_items_dynamic must never produce an output row for a
         grade flagged is_scrap in Grade Configuration — scrap qty is still counted
         in `total` (consumed from source) but carries no stock value.
+
+        Grade A is given a real item_suffix (and mocked to resolve/exist) so this
+        exercises the scrap-vs-valued-output distinction specifically, without
+        also tripping the separate "missing item" write-off guard (see
+        test_repack_service_missing_grade_item_excluded_from_total below).
         """
         from desar_manufacturing.services.repack_service import RepackService
+        from unittest.mock import patch
 
         grade_config = [
-            frappe._dict({"grade_code": "A", "is_scrap": 0, "item_suffix": "", "valuation_pct": 100, "target_warehouse": "", "scrap_item": ""}),
+            frappe._dict({"grade_code": "A", "is_scrap": 0, "item_suffix": "-A", "valuation_pct": 100, "target_warehouse": "", "scrap_item": ""}),
             frappe._dict({"grade_code": "C", "is_scrap": 1, "item_suffix": "", "valuation_pct": 5, "target_warehouse": "Scrap Yard - ST", "scrap_item": "Shemagh Scrap"}),
         ]
         mock_qi = type("MockQI", (), {
@@ -494,13 +500,52 @@ class TestBackwardCompatibility(unittest.TestCase):
             }.get(k, d),
         })()
 
-        items, total = RepackService._build_items_dynamic.__func__(
-            RepackService, mock_qi, grade_config, "Cutting and Packing Floor - ST"
-        )
+        with patch("frappe.db.exists", return_value=True), \
+             patch.object(RepackService, "_stock_uom", return_value="Nos"):
+            items, total = RepackService._build_items_dynamic.__func__(
+                RepackService, mock_qi, grade_config, "Cutting and Packing Floor - ST"
+            )
 
         self.assertEqual(total, 44)  # scrap qty still counted, consumed from source
         self.assertNotIn("Scrap Yard - ST", [i.get("t_warehouse") for i in items])
         self.assertNotIn("Shemagh Scrap", [i.get("item_code") for i in items])
+
+    def test_repack_service_missing_grade_item_excluded_from_total(self):
+        """
+        A grade whose item can't be resolved/doesn't exist must NOT have its qty
+        silently consumed from source stock with no output row — that's an
+        invisible stock/valuation write-off. Its qty must be excluded from total.
+        """
+        from desar_manufacturing.services.repack_service import RepackService
+        from unittest.mock import patch
+
+        grade_config = [
+            frappe._dict({"grade_code": "A", "is_scrap": 0, "item_suffix": "-A", "valuation_pct": 100, "target_warehouse": "FG Grade A", "scrap_item": ""}),
+            frappe._dict({"grade_code": "B", "is_scrap": 0, "item_suffix": "-B", "valuation_pct": 60, "target_warehouse": "FG Grade B", "scrap_item": ""}),
+        ]
+        mock_qi = type("MockQI", (), {
+            "reference_type": "",
+            "reference_name": "",
+            "item_code": "Grey Roll",
+            "get": lambda self, k, d=None: {
+                "custom_desar_grade_readings": [
+                    {"grade_code": "A", "qty": 42},
+                    {"grade_code": "B", "qty": 6},
+                ],
+            }.get(k, d),
+        })()
+
+        def exists_side_effect(doctype, name):
+            return name != "Grey Roll-B"  # Grade B's item doesn't exist
+
+        with patch("frappe.db.exists", side_effect=exists_side_effect), \
+             patch.object(RepackService, "_stock_uom", return_value="Nos"):
+            items, total = RepackService._build_items_dynamic.__func__(
+                RepackService, mock_qi, grade_config, "Cutting and Packing Floor - ST"
+            )
+
+        self.assertEqual(total, 42)  # Grade B's 6 excluded, not silently consumed
+        self.assertNotIn("Grey Roll-B", [i.get("item_code") for i in items])
 
     def test_settings_manager_grade_config_returns_empty_when_not_setup(self):
         """
