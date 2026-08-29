@@ -361,7 +361,7 @@ class DESARController {
             btn = `<button class="btn dc-op-btn dc-op-start" data-jc="${job.name}">
                 ▶ Start</button>`;
         } else if (is_started) {
-            btn = `<button class="btn dc-op-btn dc-op-complete" data-jc="${job.name}">
+            btn = `<button class="btn dc-op-btn dc-op-complete" data-jc="${job.name}" data-stage="${job.stage_name || job.operation || ""}">
                 ✅ Complete</button>`;
         } else {
             btn = `<span class="dc-op-done">Done ✅</span>`;
@@ -405,20 +405,46 @@ class DESARController {
             });
         });
 
-        // Complete JC
+        // Complete JC — asks for optional scrap qty (and, Warping only,
+        // actual yarn used) at the same moment the operator marks the job
+        // done, rather than a separate document/step later.
         this.$main.find(".dc-op-complete").on("click", (e) => {
             const jc = $(e.target).data("jc");
-            frappe.confirm(__("Mark this job as complete?"), () => {
-                frappe.call({
-                    method: "desar_manufacturing.desar_manufacturing.page.desar_production_controller.desar_production_controller.complete_job_card",
-                    args: { job_card: jc },
-                    freeze: true, freeze_message: __("Completing..."),
-                    callback: () => {
-                        frappe.show_alert({ message: __("Job complete ✓"), indicator: "green" });
-                        this._load_operator_jobs();
-                    }
+            const stage = ($(e.target).data("stage") || "").toLowerCase();
+            const is_warping = stage.includes("warp");
+
+            const fields = [
+                { fieldname: "scrap_qty", fieldtype: "Float", label: __("Scrap Qty (leave blank if none)") },
+            ];
+            if (is_warping) {
+                fields.push({
+                    fieldname: "actual_yarn_kg", fieldtype: "Float",
+                    label: __("Actual Yarn Used, Kg (leave blank if it matched the recipe)"),
                 });
+            }
+
+            const d = new frappe.ui.Dialog({
+                title: __("Complete Job"),
+                fields,
+                primary_action_label: __("Complete"),
+                primary_action: (values) => {
+                    d.hide();
+                    frappe.call({
+                        method: "desar_manufacturing.desar_manufacturing.page.desar_production_controller.desar_production_controller.complete_job_card",
+                        args: {
+                            job_card: jc,
+                            scrap_qty: values.scrap_qty,
+                            actual_yarn_kg: values.actual_yarn_kg,
+                        },
+                        freeze: true, freeze_message: __("Completing..."),
+                        callback: () => {
+                            frappe.show_alert({ message: __("Job complete ✓"), indicator: "green" });
+                            this._load_operator_jobs();
+                        }
+                    });
+                },
             });
+            d.show();
         });
 
         // Transfer + Finish (reuse existing)

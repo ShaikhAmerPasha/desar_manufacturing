@@ -71,10 +71,42 @@ const styles = `
 	text-decoration: underline !important;
 	color: #1d4ed8 !important;
 }
+@keyframes desar-pulse {
+	0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.85); transform: scale(1); }
+	70%  { box-shadow: 0 0 0 12px rgba(249, 115, 22, 0); transform: scale(1.05); }
+	100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); transform: scale(1); }
+}
+.desar-pulse {
+	background-color: #f97316 !important;
+	border-color: #f97316 !important;
+	animation: desar-pulse 1.2s infinite;
+}
+@keyframes desar-pulse-ring {
+	0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.85); }
+	70%  { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+.desar-pulse-ring {
+	display: inline-block;
+	border-radius: 6px;
+	animation: desar-pulse-ring 1.2s infinite;
+}
 `;
 
 frappe.ui.form.on("DESAR Production Order", {
 	refresh(frm) {
+		_desar_simplify_form(frm, {
+			hide_all: ["naming_series", "sales_order", "production_plan"],
+			// Supervisor keeps these for troubleshooting; Operator/QC/Store Manager don't.
+			hide_strict_only: ["warping_wo", "warping_transfer_se", "warping_manufacture_se", "beam_split_se"],
+		});
+		_desar_simplify_grid(frm, "roll_chains", {
+			// Reached via the guided Job Card "Create QI" buttons, not by clicking
+			// a raw Link field here — hidden for all 4 floor roles including Supervisor.
+			hide_all: ["grey_roll_qi", "finished_roll_qi", "packing_qi"],
+			hide_strict_only: ["grey_roll_wo", "finished_roll_wo", "packing_wo", "packing_manufacture_se", "repack_se"],
+		});
+
 		if (frm.doc.docstatus !== 1) return;
 
 		// Inject styles once
@@ -84,15 +116,35 @@ frappe.ui.form.on("DESAR Production Order", {
 
 		frm.trigger("render_warping_actions");
 		frm.trigger("render_beam_split_actions");
+		frm.trigger("render_next_step_guidance");
 		frm.trigger("load_and_render_dashboard");
+
+		// Job Cards/SEs/QIs are completed on their OWN form, usually in a
+		// separate tab (links open target="_blank") — this tab never
+		// navigates away, so nothing here naturally re-fetches. A submitted
+		// QI can also update this doc's own roll_chains fields server-side,
+		// not just the dashboard's Job Card/SE/QI cache — so do a full
+		// reload_doc() (which re-fires refresh, re-running everything below)
+		// whenever the user tabs back in, instead of just the dashboard part.
+		$(window).off("focus.desar_po").on("focus.desar_po", () => {
+			if (cur_frm === frm && frm.doc.docstatus === 1) {
+				frm.reload_doc();
+			}
+		});
 	},
 
 	render_warping_actions(frm) {
 		const s = frm.doc.warping_status;
 		if (s === "Not Started") {
-			frm.add_custom_button(__("Start Warping"), () => _call(frm, "start_warping", {}), __("Warping"));
+			_pulse_custom_button(
+				frm.add_custom_button(__("Start Warping"), () => _call(frm, "start_warping", {}), __("Warping")),
+				__("Click to submit the Warping Work Order and begin manufacturing")
+			);
 		} else if (s === "In Progress" && frm.doc.warping_transfer_se && !frm.doc.warping_manufacture_se) {
-			frm.add_custom_button(__("Complete Warping"), () => _call(frm, "complete_warping", {}), __("Warping"));
+			_pulse_custom_button(
+				frm.add_custom_button(__("Complete Warping"), () => _call(frm, "complete_warping", {}), __("Warping")),
+				__("Click once the Warping Transfer SE below has been submitted")
+			);
 			frm.add_custom_button(__("View Transfer SE"), () =>
 				frappe.set_route("Form", "Stock Entry", frm.doc.warping_transfer_se), __("Warping"));
 		}
@@ -101,7 +153,22 @@ frappe.ui.form.on("DESAR Production Order", {
 	render_beam_split_actions(frm) {
 		if (frm.doc.warping_status !== "Completed") return;
 		if (frm.doc.beam_split_status === "Completed") return;
-		frm.add_custom_button(__("Split Beam"), () => _split_beam_dialog(frm), __("Beam Split"));
+		_pulse_custom_button(
+			frm.add_custom_button(__("Split Beam"), () => _split_beam_dialog(frm), __("Beam Split")),
+			__("Click to divide the warping beam into individual rolls")
+		);
+	},
+
+	render_next_step_guidance(frm) {
+		// This runs more than once per page load by design (once immediately
+		// on refresh, again once the async dashboard data below has loaded,
+		// so the message reflects fresh data) — but frm.set_intro() ->
+		// show_message() always APPENDS a new banner, it never clears the
+		// previous one. Without this clear, every re-render stacks another
+		// copy of the same message on top of the last.
+		frm.dashboard.clear_headline();
+		const { message, color } = _next_step_message(frm);
+		frm.set_intro(message, color);
 	},
 
 	load_and_render_dashboard(frm) {
@@ -184,10 +251,12 @@ frappe.ui.form.on("DESAR Production Order", {
 		Promise.all(promises).then(() => {
 			frm.trigger("render_warping_dashboard");
 			frm.trigger("render_roll_chains");
+			frm.trigger("render_next_step_guidance");
 		}).catch(err => {
 			console.error("Error loading dashboard data:", err);
 			frm.trigger("render_warping_dashboard");
 			frm.trigger("render_roll_chains");
+			frm.trigger("render_next_step_guidance");
 		});
 	},
 
@@ -250,7 +319,6 @@ frappe.ui.form.on("DESAR Production Order", {
 			}
 		});
 
-		_bind_submit_buttons($card, frm);
 		_bind_details_toggle($card);
 		$wrapper.append($card);
 	},
@@ -271,7 +339,6 @@ frappe.ui.form.on("DESAR Production Order", {
 		const $wrap = $('<div class="desar-roll-chains"></div>');
 		frm.doc.roll_chains.forEach(roll => $wrap.append(_render_roll_row(frm, roll)));
 
-		_bind_submit_buttons($wrap, frm);
 		_bind_details_toggle($wrap);
 
 		// Event delegation for stage accordion toggles
@@ -399,7 +466,7 @@ function _render_stage_section(frm, stage_label, status, wo, batch_no, qi_no, st
 				</span>
 			</div>
 			<div class="desar-stage-body" style="display:${display_style}; border-top:1px solid #f1f5f9;">
-				${_details_toggle(__("Details"), details_html)}
+				${details_html}
 			</div>
 		</div>
 	`;
@@ -416,11 +483,9 @@ function _qi_badge_html(frm, qi_no) {
 		qi_status = "Draft";
 	}
 	const badge = _badge(`QI: ${qi_no} (${qi_status})`, qi_status);
-	const submit_btn = qi_doc.docstatus === 0
-		? `<button class="btn btn-xs btn-primary btn-submit-qi" data-qi="${qi_no}" style="padding: 1px 5px; font-size: 10px; margin-left: 4px; line-height: 1.2;">Submit QI</button>`
-		: "";
-	return `<span style="margin-left:8px; display:inline-flex; align-items:center;">
-		<a href="${frappe.utils.get_form_link("Quality Inspection", qi_no)}" target="_blank">${badge}</a>${submit_btn}
+	const pending_cls = qi_doc.docstatus === 0 ? "desar-pulse-ring" : "";
+	return `<span style="margin-left:8px; display:inline-flex; align-items:center;" class="${pending_cls}">
+		<a href="${frappe.utils.get_form_link("Quality Inspection", qi_no)}" target="_blank">${badge}</a>
 	</span>`;
 }
 
@@ -469,7 +534,8 @@ function _job_cards_html(job_cards, wo) {
 			<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
 				${job_cards.map(jc => {
 					const badge = _badge(`${jc.operation}: ${jc.status}`, jc.status);
-					return `<a href="${frappe.utils.get_form_link("Job Card", jc.name)}" target="_blank">${badge}</a>`;
+					const pending = jc.status !== "Completed";
+					return `<a href="${frappe.utils.get_form_link("Job Card", jc.name)}" target="_blank" class="${pending ? "desar-pulse-ring" : ""}">${badge}</a>`;
 				}).join("")}
 			</div>
 		</div>
@@ -495,13 +561,10 @@ function _stock_entries_html(se_list, wo) {
 function _se_badge_html(se) {
 	const docstatus_label = se.docstatus === 1 ? "Submitted" : (se.docstatus === 0 ? "Draft" : "Cancelled");
 	const badge = _badge(`${se.label}: ${se.name} (${docstatus_label})`, docstatus_label);
-	const submit_btn = se.docstatus === 0
-		? `<button class="btn btn-xs btn-primary btn-submit-se" data-se="${se.name}" style="padding: 1px 5px; font-size: 10px; margin-left: 4px; line-height: 1.2;">Submit SE</button>`
-		: "";
+	const pending = se.docstatus === 0;
 	return `
-		<div style="display:inline-flex; align-items:center; margin-bottom: 2px;">
+		<div style="display:inline-flex; align-items:center; margin-bottom: 2px;" class="${pending ? "desar-pulse-ring" : ""}">
 			<a href="${frappe.utils.get_form_link("Stock Entry", se.name)}" target="_blank">${badge}</a>
-			${submit_btn}
 		</div>
 	`;
 }
@@ -544,39 +607,6 @@ function _bind_details_toggle($scope) {
 }
 
 
-function _bind_submit_buttons($scope, frm) {
-	$scope.on("click", ".btn-submit-se", function(e) {
-		e.preventDefault();
-		e.stopPropagation();
-		_submit_doc(frm, "Stock Entry", $(this).data("se"));
-	});
-	$scope.on("click", ".btn-submit-qi", function(e) {
-		e.preventDefault();
-		e.stopPropagation();
-		_submit_doc(frm, "Quality Inspection", $(this).data("qi"));
-	});
-}
-
-
-function _submit_doc(frm, doctype, name) {
-	frappe.confirm(
-		__("Are you sure you want to submit {0} {1}?", [doctype, name]),
-		function() {
-			frappe.call({
-				method: "frappe.client.submit",
-				args: { doc: { doctype, name } },
-				freeze: true,
-				freeze_message: __("Submitting {0}...", [doctype]),
-				callback(r) {
-					if (!r.exc) {
-						frappe.show_alert({message: __("{0} submitted successfully", [doctype]), indicator: "green"});
-						frm.reload_doc();
-					}
-				}
-			});
-		}
-	);
-}
 
 
 function _badge(label, status) {
@@ -598,31 +628,45 @@ function _add_roll_buttons($c, frm, roll) {
 
 	// Grey Roll
 	if (roll.grey_roll_status === "Not Started" && roll.beam_roll_batch)
-		_btn($c, "Start Grey Roll", "primary", () => _roll_call(frm, "start_grey_roll", rn));
-	if (roll.grey_roll_status === "In Progress" && !roll.grey_roll_qi)
-		_btn($c, "Complete Grey Roll", "primary", () => _roll_call(frm, "complete_grey_roll", rn));
+		_btn($c, "Start Grey Roll", "primary", () => _roll_call(frm, "start_grey_roll", rn),
+			"Begin the Grey Roll stage for this roll");
+	if (roll.grey_roll_status === "In Progress" && !roll.grey_roll_qi) {
+		const blocked = _job_cards_pending(frm, roll.grey_roll_wo);
+		_btn($c, "Complete Grey Roll", blocked ? "default" : "primary", () => _roll_call(frm, "complete_grey_roll", rn),
+			blocked ? "Complete the open Job Card(s) above first" : "Finish Grey Roll and create its Quality Inspection");
+	}
 	if (roll.grey_roll_status === "In Progress" && roll.grey_roll_qi)
 		_btn($c, "Refresh", "default", () => _refresh_roll(frm, rn));
 
 	// Finished Roll
 	if (roll.finished_roll_status === "Not Started" && roll.grey_roll_status === "Completed")
-		_btn($c, "Start Finished Roll", "primary", () => _roll_call(frm, "start_finished_roll", rn));
-	if (roll.finished_roll_status === "In Progress" && !roll.finished_roll_qi)
-		_btn($c, "Complete Finished Roll", "primary", () => _roll_call(frm, "complete_finished_roll", rn));
+		_btn($c, "Start Finished Roll", "primary", () => _roll_call(frm, "start_finished_roll", rn),
+			"Begin the Finished Roll stage for this roll");
+	if (roll.finished_roll_status === "In Progress" && !roll.finished_roll_qi) {
+		const blocked = _job_cards_pending(frm, roll.finished_roll_wo);
+		_btn($c, "Complete Finished Roll", blocked ? "default" : "primary", () => _roll_call(frm, "complete_finished_roll", rn),
+			blocked ? "Complete the open Job Card(s) above first" : "Finish Finished Roll and create its Quality Inspection");
+	}
 	if (roll.finished_roll_status === "In Progress" && roll.finished_roll_qi)
 		_btn($c, "Refresh", "default", () => _refresh_roll(frm, rn));
 
 	// Packing
 	if (roll.packing_status === "Not Started" && roll.finished_roll_status === "Completed")
-		_btn($c, "Start Packing", "primary", () => _roll_call(frm, "start_packing", rn));
-	if (roll.packing_status === "In Progress" && !roll.packing_manufacture_se)
-		_btn($c, "Complete Packing", "primary", () => _roll_call(frm, "complete_packing", rn));
+		_btn($c, "Start Packing", "primary", () => _roll_call(frm, "start_packing", rn),
+			"Begin the Packing stage for this roll");
+	if (roll.packing_status === "In Progress" && !roll.packing_manufacture_se) {
+		const blocked = _job_cards_pending(frm, roll.packing_wo);
+		_btn($c, "Complete Packing", blocked ? "default" : "primary", () => _roll_call(frm, "complete_packing", rn),
+			blocked ? "Complete the open Job Card(s) above first" : "Finish Packing and create the Manufacture Stock Entry");
+	}
 	if (roll.packing_status === "In Progress" && roll.packing_manufacture_se && !roll.packing_qi)
-		_btn($c, "Create Inspection", "primary", () => _roll_call(frm, "finalize_packing", rn));
+		_btn($c, "Create Inspection", "primary", () => _roll_call(frm, "finalize_packing", rn),
+			"Create the Packing Quality Inspection");
 	if (roll.packing_status === "In Progress" && roll.packing_qi)
 		_btn($c, "Refresh", "default", () => _refresh_roll(frm, rn));
 	if (roll.packing_status === "In Progress" && roll.packing_qi && _qi_submitted(frm, roll.packing_qi))
-		_btn($c, "Complete Roll", "primary", () => _roll_call(frm, "complete_roll", rn));
+		_btn($c, "Complete Roll", "primary", () => _roll_call(frm, "complete_roll", rn),
+			"Submitted QI accepted — click to mark this roll fully complete");
 	if (roll.repack_se)
 		_btn($c, "View Repack SE", "default", () => frappe.set_route("Form", "Stock Entry", roll.repack_se));
 }
@@ -642,7 +686,7 @@ function _split_beam_dialog(frm) {
 				// array directly (grid.js:571) instead of the child doctype's
 				// meta — mirrors DESAR Beam Split Row's own field definitions.
 				fields: [
-					{ fieldname: "qty_to_split", fieldtype: "Int", label: __("No. of Rolls"), in_list_view: 1, reqd: 1 },
+					{ fieldname: "qty_to_split", fieldtype: "Int", label: __("No. of Rolls"), in_list_view: 1, reqd: 1, default: 1, read_only: 1 },
 					{ fieldname: "pieces_per_split", fieldtype: "Int", label: __("Pieces per Roll"), in_list_view: 1, reqd: 1 },
 				],
 				data: [{ qty_to_split: 1, pieces_per_split: total_qty }],
@@ -651,6 +695,10 @@ function _split_beam_dialog(frm) {
 		],
 		primary_action_label: __("Split"),
 		primary_action() {
+			// disable_primary_action() only adds a CSS class — it does not
+			// stop the click handler from running. This guard is the real
+			// block; the CSS class is just the visual signal.
+			if (!_split_rows_valid(d, total_qty)) return;
 			const rows = _split_dialog_rows(d);
 			d.hide();
 			frappe.call({
@@ -666,12 +714,33 @@ function _split_beam_dialog(frm) {
 		},
 	});
 
-	const refresh_summary = () => _render_split_summary(d, total_qty);
+	const refresh_summary = () => {
+		_render_split_summary(d, total_qty);
+		if (_split_rows_valid(d, total_qty)) {
+			d.enable_primary_action();
+		} else {
+			d.disable_primary_action();
+		}
+	};
 	d.fields_dict.split_rows.grid.wrapper.on(
 		"change click", "input, select, .grid-add-row, .grid-remove-rows, .grid-remove-all-rows",
 		() => setTimeout(refresh_summary, 50));
 	d.show();
 	refresh_summary();
+}
+
+
+function _split_rows_valid(d, total_qty) {
+	const rows = d.fields_dict.split_rows.grid.get_data() || [];
+	if (!rows.length) return false;
+	// Every row's "No. of Rolls" and "Pieces per Roll" must actually be
+	// filled in (a blank/zero Pieces per Roll — e.g. right after Add Row,
+	// before the user has typed a value — must block Split, not silently
+	// count as zero pieces).
+	const all_filled = rows.every(r => cint(r.qty_to_split) > 0 && cint(r.pieces_per_split) > 0);
+	if (!all_filled) return false;
+	const pieces = rows.reduce((sum, r) => sum + cint(r.qty_to_split) * cint(r.pieces_per_split), 0);
+	return pieces === total_qty;
 }
 
 
@@ -743,6 +812,15 @@ function _refresh_roll(frm, roll_no) {
 	});
 }
 
+// Mirrors roll_service._validate_job_cards — the server throws if any Job
+// Card for this work order isn't Completed, so don't pulse "Complete X"
+// (implying it's the next click) while that would just error.
+function _job_cards_pending(frm, work_order) {
+	if (!work_order) return false;
+	const cards = (frm.dashboard_job_cards && frm.dashboard_job_cards[work_order]) || [];
+	return cards.some(jc => jc.status !== "Completed");
+}
+
 function _qi_submitted(frm, qi_name) {
 	if (frm.dashboard_qis && frm.dashboard_qis[qi_name]) {
 		return frm.dashboard_qis[qi_name].docstatus === 1;
@@ -750,10 +828,77 @@ function _qi_submitted(frm, qi_name) {
 	return true;
 }
 
-function _btn($c, label, type, fn) {
+function _btn($c, label, type, fn, hint) {
 	const cls = type === "primary" ? "btn-primary" : "btn-default";
-	$(`<button class="btn btn-xs ${cls}" style="margin-left:5px;">${__(label)}</button>`)
+	const $btn = $(`<button class="btn btn-xs ${cls}" style="margin-left:5px;">${__(label)}</button>`)
 		.on("click", fn).appendTo($c);
+	if (type === "primary") {
+		$btn.addClass("desar-pulse");
+		if (hint) $btn.attr("title", __(hint));
+	}
+}
+
+// Highlights a dropdown-grouped frm.add_custom_button entry the same way
+// _btn() highlights inline roll buttons — pulse + hover hint.
+function _pulse_custom_button($el, hint) {
+	if (!$el || !$el.length) return;
+	$el.addClass("desar-pulse");
+	if (hint) $el.attr("title", __(hint));
+}
+
+function _next_step_message(frm) {
+	if (frm.doc.warping_status === "Not Started") {
+		return { message: __("Next: click <b>Start Warping</b> (under the Warping menu above) to begin."), color: "blue" };
+	}
+	if (frm.doc.warping_status === "In Progress") {
+		if (frm.doc.warping_transfer_se && !frm.doc.warping_manufacture_se) {
+			return { message: __("Next: submit the Warping Transfer SE, then click <b>Complete Warping</b>."), color: "blue" };
+		}
+		return { message: __("Warping in progress — waiting on the Transfer SE."), color: "blue" };
+	}
+	if (frm.doc.beam_split_status !== "Completed") {
+		return { message: __("Next: click <b>Split Beam</b> (under the Beam Split menu above) to divide this batch into rolls."), color: "blue" };
+	}
+
+	const rolls = frm.doc.roll_chains || [];
+	const pending = rolls.find(r => r.roll_status !== "Completed");
+	if (!pending) {
+		return { message: __("All stages complete."), color: "green" };
+	}
+	return { message: __("Next: Roll {0} — {1}", [pending.roll_no, _roll_next_action_label(frm, pending)]), color: "blue" };
+}
+
+function _roll_next_action_label(frm, roll) {
+	if (roll.grey_roll_status === "Not Started") return __("click Start Grey Roll.");
+	if (roll.grey_roll_status === "In Progress" && !roll.grey_roll_qi) {
+		return _job_cards_pending(frm, roll.grey_roll_wo)
+			? __("complete its open Job Card(s), then click Complete Grey Roll.")
+			: __("click Complete Grey Roll.");
+	}
+	if (roll.grey_roll_status === "In Progress" && roll.grey_roll_qi) return __("submit its Grey Roll Quality Inspection.");
+
+	if (roll.finished_roll_status === "Not Started") return __("click Start Finished Roll.");
+	if (roll.finished_roll_status === "In Progress" && !roll.finished_roll_qi) {
+		return _job_cards_pending(frm, roll.finished_roll_wo)
+			? __("complete its open Job Card(s), then click Complete Finished Roll.")
+			: __("click Complete Finished Roll.");
+	}
+	if (roll.finished_roll_status === "In Progress" && roll.finished_roll_qi) return __("submit its Finished Roll Quality Inspection.");
+
+	if (roll.packing_status === "Not Started") return __("click Start Packing.");
+	if (roll.packing_status === "In Progress" && !roll.packing_manufacture_se) {
+		return _job_cards_pending(frm, roll.packing_wo)
+			? __("complete its open Job Card(s), then click Complete Packing.")
+			: __("click Complete Packing.");
+	}
+	if (roll.packing_status === "In Progress" && roll.packing_manufacture_se && !roll.packing_qi) return __("click Create Inspection.");
+	if (roll.packing_status === "In Progress" && roll.packing_qi) {
+		return _qi_submitted(frm, roll.packing_qi)
+			? __("click Complete Roll.")
+			: __("submit its Packing Quality Inspection.");
+	}
+
+	return __("finish its remaining stage.");
 }
 
 function _status_icon(s) {

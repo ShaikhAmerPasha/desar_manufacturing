@@ -8,6 +8,7 @@ from desar_manufacturing.services import (
 	warping_service,
 	roll_service,
 	production_plan_service,
+	stage_status_service,
 )
 
 # Matches DESAR Production Order's own doctype permissions: only System Manager
@@ -109,6 +110,26 @@ def complete_roll(production_order: str, roll_no: int) -> dict:
 def refresh_roll(production_order: str, roll_no: int) -> dict:
 	frappe.only_for(MUTATE_ROLES)
 	return _safe(roll_service.refresh_roll, production_order, int(roll_no))
+
+
+@frappe.whitelist()
+def find_production_order_for_stock_entry(stock_entry: str) -> str | None:
+	"""Read-only navigation helper for the Stock Entry form's 'Back to
+	Production Order' button — matches this app's other read-only info
+	endpoints (e.g. get_grade_summary) in staying ungated beyond the
+	standard Stock Entry read permission."""
+	if not frappe.has_permission("Stock Entry", "read", stock_entry):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	return stage_status_service.find_production_order_for_stock_entry(stock_entry)
+
+
+@frappe.whitelist()
+def find_production_order_for_quality_inspection(quality_inspection: str) -> str | None:
+	"""Same navigation helper as find_production_order_for_stock_entry, for
+	the Quality Inspection form's 'Back to Production Order' button."""
+	if not frappe.has_permission("Quality Inspection", "read", quality_inspection):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	return stage_status_service.find_production_order_for_quality_inspection(quality_inspection)
 
 
 def _safe(fn, *args):

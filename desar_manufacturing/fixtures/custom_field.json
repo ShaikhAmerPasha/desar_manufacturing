@@ -59,6 +59,41 @@
   "doctype": "Custom Field"
  },
  {
+  "name": "Job Card-custom_actual_yarn_kg",
+  "doctype": "Custom Field",
+  "dt": "Job Card",
+  "fieldname": "custom_actual_yarn_kg",
+  "fieldtype": "Float",
+  "label": "Actual Yarn Used (Kg)",
+  "insert_after": "scrap_items",
+  "depends_on": "eval:doc.operation && doc.operation.toLowerCase().includes('warp')",
+  "description": "What was actually weighed/issued for this Warping Job Card — yarn can stretch/waste during warping. Leave blank if it matched the recipe exactly."
+ },
+ {
+  "name": "Job Card-custom_planned_yarn_kg",
+  "doctype": "Custom Field",
+  "dt": "Job Card",
+  "fieldname": "custom_planned_yarn_kg",
+  "fieldtype": "Float",
+  "label": "Planned Yarn (Kg)",
+  "insert_after": "custom_actual_yarn_kg",
+  "read_only": 1,
+  "depends_on": "eval:doc.operation && doc.operation.toLowerCase().includes('warp')",
+  "description": "From the design's Warp Recipe. Set automatically when Actual Yarn Used is recorded."
+ },
+ {
+  "name": "Job Card-custom_yarn_loss_kg",
+  "doctype": "Custom Field",
+  "dt": "Job Card",
+  "fieldname": "custom_yarn_loss_kg",
+  "fieldtype": "Float",
+  "label": "Yarn Loss (Kg)",
+  "insert_after": "custom_planned_yarn_kg",
+  "read_only": 1,
+  "depends_on": "eval:doc.operation && doc.operation.toLowerCase().includes('warp')",
+  "description": "Actual minus Planned. Positive = more yarn used than the recipe expected (stretch/waste)."
+ },
+ {
   "doctype": "Custom Field",
   "name": "BOM-custom_design_no",
   "dt": "BOM",

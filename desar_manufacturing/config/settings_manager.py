@@ -39,6 +39,18 @@ class SettingsManager:
         "scrap_warehouse",
     ]
 
+    # Default scrap Item per stage, keyed by the same keyword substrings
+    # already used everywhere else in this app to classify a stage_name
+    # (see events/work_order.py::_get_warehouses_for_stage). Packing has no
+    # entry here — its scrap item is resolved dynamically from whichever
+    # grade is flagged Is Scrap in Grade Configuration, not a fixed setting.
+    STAGE_SCRAP_ITEM_KEYS = {
+        "warp":   "warping_scrap_item",
+        "weav":   "weaving_scrap_item",
+        "grey":   "grey_roll_scrap_item",
+        "finish": "finished_roll_scrap_item",
+    }
+
     @classmethod
     def _get_all(cls) -> dict:
         """
@@ -176,6 +188,26 @@ class SettingsManager:
     def has_grade_configuration(cls) -> bool:
         """Check if grade configuration is set up in DESAR Settings."""
         return bool(cls.get_grade_configuration())
+
+    @classmethod
+    def get_scrap_grade(cls) -> dict:
+        """The single grade row flagged Is Scrap, or {} if none is configured."""
+        for grade in cls.get_grade_configuration():
+            if grade.get("is_scrap"):
+                return grade
+        return {}
+
+    @classmethod
+    def get_stage_scrap_item(cls, stage_lower: str) -> str:
+        """
+        Default scrap Item for a Warping/Weaving/Grey Roll/Finished Roll
+        stage's Job Card — no throw, no guessing: returns "" if unconfigured,
+        callers decide whether that's fatal (it isn't — scrap entry is optional).
+        """
+        for keyword, settings_field in cls.STAGE_SCRAP_ITEM_KEYS.items():
+            if keyword in stage_lower:
+                return cls.get(settings_field) or ""
+        return ""
 
 
 def on_settings_update(doc, method):

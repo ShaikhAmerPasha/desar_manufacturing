@@ -504,8 +504,22 @@ def start_job_card(job_card: str) -> dict:
 
 
 @frappe.whitelist()
-def complete_job_card(job_card: str) -> dict:
-    """Complete and submit a Job Card."""
+def complete_job_card(job_card: str, scrap_qty=None, actual_yarn_kg=None) -> dict:
+    """
+    Complete and submit a Job Card.
+
+    scrap_qty: optional — if given, appends one row to the Job Card's own
+    native `scrap_items` table using this stage's default scrap item
+    (resolved below). ERPNext core then automatically pulls this into the
+    Work Order's Manufacture Stock Entry as a real, valued is_scrap_item row
+    the moment it's created (Stock Entry.get_scrap_items_from_job_card()) —
+    no extra plumbing needed here beyond populating this native table.
+
+    actual_yarn_kg: optional, Warping stage only — records what was actually
+    weighed/issued, for comparison against the Warp Recipe's planned kg
+    (yarn can stretch/waste during warping; nothing upstream currently
+    captures that variance).
+    """
     frappe.only_for(JOB_CARD_ROLES)
     jc = frappe.get_doc("Job Card", job_card)
     _guard_job_card_owner(jc)
@@ -519,10 +533,86 @@ def complete_job_card(job_card: str) -> dict:
             tl.time_in_mins = frappe.utils.time_diff_in_seconds(
                 tl.to_time, tl.from_time) / 60
 
+    stage_lower = _get_job_card_stage_lower(jc)
+
+    if flt(scrap_qty):
+        _append_scrap_row(jc, stage_lower, flt(scrap_qty))
+
+    if "warp" in stage_lower and actual_yarn_kg not in (None, ""):
+        _set_actual_yarn_kg(jc, flt(actual_yarn_kg))
+
     jc.flags.ignore_permissions = True
     jc.save()
     jc.submit()
     return {"status": "completed"}
+
+
+def _get_job_card_stage_lower(jc) -> str:
+    if not jc.work_order:
+        return ""
+    wo_doc = frappe.db.get_value(
+        "Work Order", jc.work_order,
+        ["custom_design_master", "production_item"], as_dict=True,
+    ) or {}
+    return (_get_stage_name_from_wo(wo_doc) or "").lower()
+
+
+def _resolve_scrap_item(jc, stage_lower: str) -> str:
+    """Default scrap Item for this Job Card's stage — "" if unconfigured or
+    unresolvable. Never guess an item into existence; callers treat "" as
+    "no default, entry skipped" rather than erroring, since scrap is optional."""
+    from desar_manufacturing.config.settings_manager import SettingsManager
+
+    if "pack" in stage_lower:
+        grade = SettingsManager.get_scrap_grade()
+        if not grade:
+            return ""
+        scrap_item = grade.get("scrap_item")
+        if scrap_item and frappe.db.exists("Item", scrap_item):
+            return scrap_item
+        if grade.get("item_suffix") and jc.production_item:
+            from desar_manufacturing.services.repack_service import RepackService
+            item_code = RepackService._derive_item_with_suffix(jc.production_item, grade["item_suffix"])
+            if item_code and frappe.db.exists("Item", item_code):
+                return item_code
+        return ""
+
+    item_code = SettingsManager.get_stage_scrap_item(stage_lower)
+    if item_code and frappe.db.exists("Item", item_code):
+        return item_code
+    return ""
+
+
+def _append_scrap_row(jc, stage_lower: str, qty: float) -> None:
+    item_code = _resolve_scrap_item(jc, stage_lower)
+    if not item_code:
+        frappe.msgprint(
+            _("No scrap item configured for this stage — scrap quantity was NOT recorded. "
+              "Configure it in DESAR Settings, or (Packing) flag a grade as scrap."),
+            indicator="orange",
+        )
+        return
+    stock_uom = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
+    jc.append("scrap_items", {
+        "item_code": item_code,
+        "stock_qty": qty,
+        "stock_uom": stock_uom,
+    })
+
+
+def _set_actual_yarn_kg(jc, actual_kg: float) -> None:
+    planned_kg = 0.0
+    wo_doc = frappe.db.get_value(
+        "Work Order", jc.work_order, "custom_design_master"
+    ) if jc.work_order else None
+    if wo_doc:
+        recipe = frappe.db.get_value("Design Master", wo_doc, "warp_recipe")
+        if recipe:
+            planned_kg = flt(frappe.db.get_value("Warp Recipe", recipe, "total_yarn_kg"))
+
+    jc.custom_actual_yarn_kg = actual_kg
+    jc.custom_planned_yarn_kg = planned_kg
+    jc.custom_yarn_loss_kg = actual_kg - planned_kg if planned_kg else 0
 
 
 @frappe.whitelist()

@@ -26,6 +26,12 @@
   "grey_roll_item",
   "finished_roll_item",
   "shemagh_scrap_item",
+  "section_stage_scrap_items",
+  "warping_scrap_item",
+  "weaving_scrap_item",
+  "col_break_stage_scrap",
+  "grey_roll_scrap_item",
+  "finished_roll_scrap_item",
   "section_auto",
   "auto_create_roll_ticket",
   "auto_create_repack_entry"
@@ -156,6 +162,40 @@
    "label": "Shemagh Scrap Item",
    "options": "Item",
    "default": "Shemagh Scrap"
+  },
+  {
+   "fieldname": "section_stage_scrap_items",
+   "fieldtype": "Section Break",
+   "label": "Per-Stage Scrap Items",
+   "description": "Default scrap/waste item recorded when an operator logs scrap while completing a Job Card at this stage. Packing's scrap item is resolved automatically from whichever grade is flagged Is Scrap in Grade Configuration below — not set here."
+  },
+  {
+   "fieldname": "warping_scrap_item",
+   "fieldtype": "Link",
+   "label": "Warping Scrap Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "weaving_scrap_item",
+   "fieldtype": "Link",
+   "label": "Weaving Scrap Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "col_break_stage_scrap",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "grey_roll_scrap_item",
+   "fieldtype": "Link",
+   "label": "Grey Roll Scrap Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "finished_roll_scrap_item",
+   "fieldtype": "Link",
+   "label": "Finished Roll Scrap Item",
+   "options": "Item"
   },
   {
    "fieldname": "section_auto",

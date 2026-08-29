@@ -16,7 +16,8 @@ def validate(doc, method):
     ctx = _final_stage_readings(doc)
     if not ctx:
         return
-    stage_name, readings = ctx
+    stage_name, readings, total = ctx
+    _guard_all_grades_zero(total)
     _validate_grade_adjustments(doc, stage_name, readings)
 
 
@@ -24,31 +25,45 @@ def before_submit(doc, method):
     ctx = _final_stage_readings(doc)
     if not ctx:
         return
-    stage_name, readings = ctx
-    total = sum(flt(r.get("qty") or 0) for r in readings)
+    stage_name, readings, total = ctx
+    _guard_all_grades_zero(total)
     wo_qty = _get_wo_qty(doc)
     valid, message = validate_grade_readings_total(total, wo_qty)
     if not valid:
         frappe.throw(_(message))
 
 
+def _guard_all_grades_zero(total):
+    """
+    total==0 across every grade (A/B/C/...) on a final-stage inspection is
+    never a legitimate result — it means nobody filled in the counted
+    quantities, not that zero pieces were produced. Left unchecked, this
+    silently submits a QI with no way to fix it short of cancelling and
+    recreating the whole document.
+    """
+    if not total:
+        frappe.throw(_(
+            "Grade quantities cannot all be zero for the final inspection. "
+            "Enter the actual counted quantities before saving."
+        ))
+
+
 def _final_stage_readings(doc):
     """
-    (stage_name, readings) if this QI has non-zero grade readings at its
-    Design Master's final stage, else None. Shared guard for the save-time
-    grade-movement check (validate) and the submit-time total check
-    (before_submit).
+    (stage_name, readings, total) if this QI is at its Design Master's final
+    stage and has a grade-readings child table at all, else None (not
+    applicable to this QI — e.g. an intermediate-stage inspection with no
+    grade concept). total may legitimately be 0 — that's for the caller to
+    decide is an error, not this function to silently swallow.
     """
     readings = doc.get("custom_desar_grade_readings") or []
     if not readings:
         return None
-    total = sum(flt(r.get("qty") or 0) for r in readings)
-    if not total:
-        return None
     stage_name = doc.get("custom_desar_stage_name") or ""
     if not is_final_stage(stage_name, get_design_master_from_qi(doc)):
         return None
-    return stage_name, readings
+    total = sum(flt(r.get("qty") or 0) for r in readings)
+    return stage_name, readings, total
 
 
 def _validate_grade_adjustments(doc, stage_name, final_readings):

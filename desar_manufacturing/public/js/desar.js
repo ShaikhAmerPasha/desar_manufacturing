@@ -55,6 +55,57 @@ function _desar_call(method, args, on_success, on_error) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// FLOOR-ROLE UI SIMPLIFICATION
+//
+// DESAR Operator / DESAR QC Inspector / DESAR Store Manager / DESAR Supervisor
+// have minimal technical/software literacy. These roles work directly in the
+// raw Desk forms (no separate simplified screen exists), so this hides pure
+// ERPNext manufacturing/accounting/planning detail and anything this app's own
+// code sets automatically (a manual edit would silently break the automation)
+// — cosmetic only (frm.set_df_property), not a permission/security change.
+// System Manager (or any account without a DESAR floor role) is untouched.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _desar_floor_role() {
+    const roles = frappe.user_roles || [];
+    if (roles.includes("System Manager")) return null;
+    const is_floor = ["DESAR Operator", "DESAR QC Inspector", "DESAR Store Manager", "DESAR Supervisor"]
+        .some(r => roles.includes(r));
+    if (!is_floor) return null;
+    // Supervisor gets a lighter touch — keeps raw Work Order/Stock Entry
+    // navigation links for troubleshooting that Operator/QC/Store Manager don't.
+    return roles.includes("DESAR Supervisor") ? "supervisor" : "strict";
+}
+
+
+function _desar_simplify_form(frm, { hide_all = [], hide_strict_only = [], readonly_all = [] } = {}) {
+    const role = _desar_floor_role();
+    if (!role) return;
+    hide_all.forEach(f => frm.set_df_property(f, "hidden", 1));
+    readonly_all.forEach(f => frm.set_df_property(f, "read_only", 1));
+    if (role === "strict") {
+        hide_strict_only.forEach(f => frm.set_df_property(f, "hidden", 1));
+    }
+    frm.refresh_fields();
+}
+
+
+function _desar_simplify_grid(frm, table_fieldname, { hide_all = [], hide_strict_only = [], readonly_all = [] } = {}) {
+    const role = _desar_floor_role();
+    if (!role) return;
+    const field = frm.fields_dict[table_fieldname];
+    const grid = field && field.grid;
+    if (!grid) return;
+    hide_all.forEach(f => grid.update_docfield_property(f, "hidden", 1));
+    readonly_all.forEach(f => grid.update_docfield_property(f, "read_only", 1));
+    if (role === "strict") {
+        hide_strict_only.forEach(f => grid.update_docfield_property(f, "hidden", 1));
+    }
+    frm.refresh_field(table_fieldname);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // WORK ORDER FORM
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -103,6 +154,25 @@ frappe.ui.form.on("Work Order", {
      * Try dynamic stage config first, fallback to legacy.
      */
     refresh(frm) {
+        _desar_simplify_form(frm, {
+            hide_all: [
+                "naming_series", "bom_no", "allow_alternative_item", "use_multi_level_bom",
+                "from_wip_warehouse", "company", "sales_order", "project", "required_items",
+                "planned_start_date", "planned_end_date", "actual_start_date", "actual_end_date",
+                "expected_delivery_date", "lead_time", "operations", "transfer_material_against",
+                "planned_operating_cost", "actual_operating_cost", "additional_operating_cost",
+                "corrective_operation_cost", "total_operating_cost", "stock_uom",
+                "material_request", "material_request_item", "sales_order_item", "production_plan",
+                "production_plan_item", "production_plan_sub_assembly_item", "product_bundle_item",
+                "amended_from", "update_consumed_material_cost_in_project", "has_serial_no",
+                "has_batch_no", "batch_size", "process_loss_qty", "disassembled_qty",
+                // system-managed — this app's own hooks set these automatically
+                "skip_transfer", "source_warehouse", "wip_warehouse", "fg_warehouse",
+                "scrap_warehouse", "custom_design_master",
+            ],
+            readonly_all: ["production_item", "item_name", "qty", "custom_design_no", "custom_article_name"],
+        });
+
         if (frm.doc.docstatus !== 1) return;
 
         _desar_load_stage_config(frm, (stages) => {
@@ -212,6 +282,65 @@ function _desar_create_qi(frm, stage, label) {
         }
     );
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STOCK ENTRY FORM — "Back to Production Order" for DESAR-owned Stock Entries
+// ═══════════════════════════════════════════════════════════════════════════════
+
+frappe.ui.form.on("Stock Entry", {
+    refresh(frm) {
+        _desar_simplify_form(frm, {
+            hide_all: [
+                "naming_series", "outgoing_stock_entry", "source_stock_entry", "purchase_order",
+                "subcontracting_order", "delivery_note_no", "sales_invoice_no", "purchase_receipt_no",
+                "pick_list", "asset_repair", "company", "posting_time", "set_posting_time",
+                "inspection_required", "apply_putaway_rule", "from_bom", "use_multi_level_bom",
+                "bom_no", "get_items", "fg_completed_qty", "process_loss_qty", "process_loss_percentage",
+                "source_warehouse_address", "source_address_display", "target_warehouse_address",
+                "target_address_display", "scan_barcode", "last_scanned_warehouse", "get_stock_and_rate",
+                "total_outgoing_value", "total_incoming_value", "value_difference", "additional_costs",
+                "total_additional_costs", "supplier", "supplier_name", "supplier_address", "address_display",
+                "project", "cost_center", "select_print_heading", "letter_head", "is_opening",
+                "per_transferred", "total_amount", "amended_from", "credit_note", "is_return",
+                // system-managed — this app overrides per-row after generation
+                "from_warehouse", "to_warehouse", "custom_source_qi",
+            ],
+        });
+        _desar_simplify_grid(frm, "items", {
+            hide_all: [
+                "serial_no", "use_serial_batch_fields", "transfer_qty", "uom", "stock_uom", "conversion_factor", "retain_sample",
+                "sample_quantity", "basic_rate", "basic_amount", "additional_cost", "amount",
+                "valuation_rate", "allow_zero_valuation_rate", "set_basic_rate_manually",
+                "add_serial_batch_bundle", "serial_and_batch_bundle", "expense_account", "cost_center",
+                "actual_qty", "bom_no", "allow_alternative_item", "barcode", "has_item_scanned",
+                "is_finished_item", "is_scrap_item", "subcontracted_item", "description", "item_group",
+                "image", "image_view", "material_request", "material_request_item", "original_item",
+                "against_stock_entry", "ste_detail", "po_detail", "sco_rm_detail", "putaway_rule",
+                "reference_purchase_receipt", "transferred_qty", "job_card_item", "project",
+            ],
+            readonly_all: ["s_warehouse", "t_warehouse"],
+        });
+
+        if (frm.is_new()) return;
+
+        frappe.call({
+            method: "desar_manufacturing.api.production_order.find_production_order_for_stock_entry",
+            args: { stock_entry: frm.doc.name },
+            callback({ message: po }) {
+                if (!po) return;
+                frm.add_custom_button(__("Back to Production Order"), () => {
+                    frappe.set_route("Form", "DESAR Production Order", po);
+                }, __("DESAR"));
+                frm.set_intro(
+                    __("This Stock Entry belongs to Production Order {0}.",
+                        [`<a href="/app/desar-production-order/${po}">${po}</a>`]),
+                    "blue"
+                );
+            }
+        });
+    }
+});
 
 
 // ═══════════════════════════════════════════════════════════════════════════════

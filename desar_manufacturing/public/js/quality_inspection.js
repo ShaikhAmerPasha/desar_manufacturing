@@ -12,7 +12,22 @@ frappe.ui.form.on("Quality Inspection", {
 		// (events/quality_inspection.py::on_cancel already reverts Roll Ticket/
 		// Roll Chain state correctly for a standalone QI cancel).
 		frm.ignore_doctypes_on_cancel_all = ["DESAR Production Order"];
+
+		_desar_simplify_form(frm, {
+			hide_all: [
+				"naming_series", "inspection_type", "reference_type", "reference_name",
+				"item_serial_no", "bom_no", "verified_by", "amended_from", "manual_inspection",
+				"child_row_reference", "company", "letter_head", "readings",
+			],
+			readonly_all: [
+				"item_code", "batch_no", "inspected_by", "report_date",
+				"quality_inspection_template", "sample_size",
+			],
+		});
+		_desar_apply_grade_readings_readonly(frm);
+
 		_desar_fetch_baseline(frm, () => _desar_prefill_if_fresh(frm));
+		_desar_show_production_order_link(frm);
 	},
 
 	quality_inspection_template(frm) {
@@ -33,8 +48,43 @@ frappe.ui.form.on("DESAR Grade Adjustment", {
 });
 
 
+function _desar_show_production_order_link(frm) {
+	if (frm.is_new()) return;
+	frappe.call({
+		method: "desar_manufacturing.api.production_order.find_production_order_for_quality_inspection",
+		args: { quality_inspection: frm.doc.name },
+		callback({ message: po }) {
+			if (!po) return;
+			frm.add_custom_button(__("Back to Production Order"), () => {
+				frappe.set_route("Form", "DESAR Production Order", po);
+			}, __("DESAR"));
+			frm.set_intro(
+				__("This Quality Inspection belongs to Production Order {0}.",
+					[`<a href="/app/desar-production-order/${po}">${po}</a>`]),
+				"blue"
+			);
+		}
+	});
+}
+
+
 function _desar_is_packing(frm) {
 	return frm.doc.custom_desar_stage_name === "Packing" && !!frm.doc.custom_roll_ticket;
+}
+
+
+function _desar_apply_grade_readings_readonly(frm) {
+	// Once any Grade Adjustment row exists on a Packing-stage QI, qty on
+	// custom_desar_grade_readings is auto-recomputed by _desar_recompute() —
+	// a floor worker should never hand-edit a number the system is about to
+	// overwrite. Cosmetic only, not gated by role: this is true for every user.
+	const grid = frm.fields_dict.custom_desar_grade_readings &&
+		frm.fields_dict.custom_desar_grade_readings.grid;
+	if (!grid) return;
+	const should_be_readonly = _desar_is_packing(frm) &&
+		(frm.doc.custom_desar_grade_adjustments || []).length > 0;
+	grid.update_docfield_property("qty", "read_only", should_be_readonly ? 1 : 0);
+	frm.refresh_field("custom_desar_grade_readings");
 }
 
 
@@ -78,4 +128,5 @@ function _desar_recompute(frm) {
 		frappe.model.set_value(r.doctype, r.name, "qty", expected[r.grade_code]);
 	});
 	frm.refresh_field("custom_desar_grade_readings");
+	_desar_apply_grade_readings_readonly(frm);
 }

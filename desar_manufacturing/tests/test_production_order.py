@@ -131,6 +131,71 @@ class TestPOStatusComputation(unittest.TestCase):
         )
 
 
+class TestCurrentStageComputation(unittest.TestCase):
+    """Mirror of stage_status_service._compute_current_stage /
+    _roll_stage_label — real regression coverage for the list-view
+    'stuck on Submitted' bug (warping/beam-split never refreshed the PO)."""
+
+    def _roll_stage_label(self, roll_status, grey, finished, packing):
+        if roll_status == "Completed":
+            return "Completed"
+        if packing == "In Progress" or (finished == "Completed" and packing == "Not Started"):
+            return "Packing"
+        if finished == "In Progress" or (grey == "Completed" and finished == "Not Started"):
+            return "Finished Roll"
+        return "Grey Roll"
+
+    def _current_stage(self, warping_status, beam_split_status, roll_labels):
+        if warping_status != "Completed":
+            return "Warping"
+        if beam_split_status != "Completed":
+            return "Beam Split"
+        if not roll_labels:
+            return "Beam Split"
+        distinct = set(roll_labels)
+        if len(distinct) == 1:
+            return roll_labels[0]
+        from collections import Counter
+        counts = Counter(roll_labels)
+        return ", ".join(f"{label}: {count}" for label, count in counts.most_common())
+
+    def test_warping_in_progress_is_not_submitted(self):
+        """The bug: this used to stay 'Submitted' because warping_service
+        never called the refresh helper."""
+        self.assertEqual(self._current_stage("In Progress", "Not Started", []), "Warping")
+
+    def test_warping_not_started(self):
+        self.assertEqual(self._current_stage("Not Started", "Not Started", []), "Warping")
+
+    def test_beam_split_pending(self):
+        self.assertEqual(self._current_stage("Completed", "Not Started", []), "Beam Split")
+
+    def test_single_roll_grey(self):
+        label = self._roll_stage_label("In Progress", "In Progress", "Locked", "Locked")
+        self.assertEqual(self._current_stage("Completed", "Completed", [label]), "Grey Roll")
+
+    def test_single_roll_finished(self):
+        label = self._roll_stage_label("In Progress", "Completed", "In Progress", "Locked")
+        self.assertEqual(self._current_stage("Completed", "Completed", [label]), "Finished Roll")
+
+    def test_single_roll_packing(self):
+        label = self._roll_stage_label("In Progress", "Completed", "Completed", "In Progress")
+        self.assertEqual(self._current_stage("Completed", "Completed", [label]), "Packing")
+
+    def test_single_roll_completed(self):
+        label = self._roll_stage_label("Completed", "Completed", "Completed", "Completed")
+        self.assertEqual(self._current_stage("Completed", "Completed", [label]), "Completed")
+
+    def test_mixed_rolls_grouped_not_enumerated(self):
+        """Two rolls at different stages — grouped with counts, matches the
+        user's example (roll 1 at warping-equivalent stage, roll 2 elsewhere)."""
+        grey_label = self._roll_stage_label("In Progress", "In Progress", "Locked", "Locked")
+        packing_label = self._roll_stage_label("In Progress", "Completed", "Completed", "In Progress")
+        stage = self._current_stage("Completed", "Completed", [grey_label, packing_label])
+        self.assertIn("Grey Roll: 1", stage)
+        self.assertIn("Packing: 1", stage)
+
+
 class TestBatchChain(unittest.TestCase):
     """Batch linking between stages."""
 

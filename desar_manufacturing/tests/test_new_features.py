@@ -297,12 +297,46 @@ class TestValidateOnSave(unittest.TestCase):
         except ImportError:
             self.skipTest("frappe not available")
 
-    def test_zero_total_skips_validation(self):
+    def test_all_grades_zero_blocks_save(self):
+        """A final-stage QI with grade readings present but every quantity
+        zero must be blocked, not silently allowed through — an all-zero
+        result means nobody filled in the counts, not that zero pieces were
+        produced. (This is what let a user accidentally save+submit an
+        empty inspection and then have to cancel and recreate it.)"""
         try:
             import frappe
-            from desar_manufacturing.events.quality_inspection import validate
-            readings = [self._Row(grade_code="A", qty=0)]
-            validate(self._MockDoc(readings), "validate")
+            if not frappe.db:
+                self.skipTest("frappe site context not initialized — run via bench run-tests")
+            from unittest.mock import patch
+            import desar_manufacturing.events.quality_inspection as qi_events
+
+            readings = [self._Row(grade_code="A", qty=0), self._Row(grade_code="B", qty=0)]
+            doc = self._MockDoc(readings)
+
+            with patch.object(qi_events, "is_final_stage", return_value=True), \
+                 patch.object(qi_events, "get_design_master_from_qi", return_value="DM-TEST"):
+                with self.assertRaises(frappe.ValidationError):
+                    qi_events.validate(doc, "validate")
+        except ImportError:
+            self.skipTest("frappe not available")
+
+    def test_all_grades_zero_blocks_submit(self):
+        """Same guard on the submit path — belt-and-suspenders in case a
+        zero-grade doc somehow reaches submit without having been re-saved."""
+        try:
+            import frappe
+            if not frappe.db:
+                self.skipTest("frappe site context not initialized — run via bench run-tests")
+            from unittest.mock import patch
+            import desar_manufacturing.events.quality_inspection as qi_events
+
+            readings = [self._Row(grade_code="A", qty=0), self._Row(grade_code="B", qty=0)]
+            doc = self._MockDoc(readings)
+
+            with patch.object(qi_events, "is_final_stage", return_value=True), \
+                 patch.object(qi_events, "get_design_master_from_qi", return_value="DM-TEST"):
+                with self.assertRaises(frappe.ValidationError):
+                    qi_events.before_submit(doc, "before_submit")
         except ImportError:
             self.skipTest("frappe not available")
 

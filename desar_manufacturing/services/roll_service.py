@@ -15,7 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import nowdate
 
-from desar_manufacturing.services import batch_service, qi_service, stock_entry_service
+from desar_manufacturing.services import batch_service, qi_service, stock_entry_service, stage_status_service
 from desar_manufacturing.utils.validation_utils import resolve_by_keyword
 from desar_manufacturing.utils.doc_utils import is_submitted
 
@@ -484,22 +484,7 @@ def _update_roll(roll, updates: dict) -> None:
 
 
 def _refresh_po_status(po) -> None:
-	po.reload()
-	rolls = po.roll_chains
-	if not rolls:
-		return
-	all_done     = all(r.roll_status == "Completed" for r in rolls)
-	any_progress = any(r.roll_status in ("In Progress", "Completed") for r in rolls)
-
-	if all_done and po.warping_status == "Completed" and po.beam_split_status == "Completed":
-		new_status = "Completed"
-	elif any_progress or po.warping_status in ("In Progress", "Completed"):
-		new_status = "In Progress"
-	else:
-		new_status = "Submitted"
-
-	if po.status != new_status:
-		po.db_set("status", new_status, update_modified=True)
+	stage_status_service.refresh_stage_status(po)
 
 
 def _configure_wo(wo, po, stage_keyword: str, is_final: bool = False) -> None:
