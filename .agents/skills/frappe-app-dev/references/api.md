@@ -92,8 +92,6 @@ def public_endpoint():
     return {"message": "Hello"}
 ```
 
-Without `allow_guest=True`, the endpoint requires authentication.
-
 ## Argument handling
 
 - **Always add type hints** to whitelisted method parameters. Frappe validates and casts arguments based on type hints, preventing type-confusion attacks:

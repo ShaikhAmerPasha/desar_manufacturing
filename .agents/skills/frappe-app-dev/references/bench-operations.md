@@ -1,7 +1,5 @@
 # Bench CLI Reference
 
-Always use bare `bench`. Not `./env/bin/bench`.
-
 ## App & site lifecycle
 
 ```bash

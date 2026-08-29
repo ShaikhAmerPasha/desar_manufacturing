@@ -43,8 +43,4 @@ count = len(frappe.cache.get_keys("presence:"))
 - **Expensive computed values** — cache with TTL to avoid recomputation
 - **Cross-request coordination** — flags, locks, counters
 
-## When NOT to use cache
-
-- **Persistent data** — use the database
-- **User-specific state** — use `frappe.session` or documents
-- **Large objects** — Redis is not a blob store
+Do not cache large objects. Redis is not a blob store.

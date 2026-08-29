@@ -72,9 +72,4 @@ socket.disconnect();
 
 Port 9000 is the default Socket.IO port in Frappe development (`bench start`).
 
-## Common patterns
-
-- Use `after_commit=True` for events triggered during document saves
-- Use `user=` for private notifications
-- Use `doctype=` + `docname=` for document-specific updates (only users with the doc open receive it)
-- Site-wide broadcasts (no `user`/`doctype`) go to all Desk users — not guests or portal users
+Use `after_commit=True` for events triggered during document saves. Site-wide broadcasts reach Desk users only, not guests or portal users.

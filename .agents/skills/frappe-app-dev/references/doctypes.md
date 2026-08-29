@@ -4,9 +4,7 @@ DocTypes are the core data model in Frappe. Each DocType becomes a database tabl
 
 ## Creating a DocType
 
-Create the JSON definition file. Frappe creates the folder structure on `bench migrate`.
-
-**Do NOT `mkdir` DocType directories.** Write the JSON file and let migrate handle it.
+Write the JSON definition file and let `bench migrate` create the folder structure. Do NOT `mkdir` DocType directories.
 
 File path: `apps/<app>/<app>/<module>/doctype/<doctype_name>/<doctype_name>.json`
 
@@ -65,11 +63,9 @@ apps/<app>/<app>/<module>/doctype/<doctype_name>/__init__.py
 | Data | Short text (140 chars) |
 | Small Text | Multi-line text |
 | Text Editor | Rich text (HTML) |
-| Int | Integer |
-| Float | Decimal |
+| Int / Float | Number |
 | Currency | Money amounts |
-| Date | Date only |
-| Datetime | Date + time |
+| Date / Datetime | Date, or date with time |
 | Select | Dropdown (options separated by `\n`) |
 | Link | Foreign key to another DocType |
 | Table | Child table (one-to-many) |
@@ -99,7 +95,7 @@ For one-to-many relationships (e.g. Expense Items inside an Expense):
 }
 ```
 
-Child DocType must have `"istable": 1` and no permissions (inherits from parent).
+A child DocType needs no permissions. It inherits them from the parent.
 
 ## After creating/modifying DocTypes
 

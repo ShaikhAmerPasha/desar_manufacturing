@@ -2,16 +2,6 @@
 
 Use this flow when the user wants to extend, modify, or fix an app that already exists.
 
-## Checklist
-```
-- [ ] Step 1: Find and confirm bench root
-- [ ] Step 2: Locate the app
-- [ ] Step 3: Confirm site and app installation
-- [ ] Step 4: Enable developer mode
-- [ ] Step 5: Build / modify features
-- [ ] Step 6: Migrate and verify
-```
-
 ## Step 1: Find and confirm bench root
 
 The bench root is typically the parent of the workspace directory, or the workspace itself. Look for `apps/`, `sites/`, and `Procfile`.

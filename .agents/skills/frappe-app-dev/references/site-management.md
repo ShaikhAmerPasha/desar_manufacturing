@@ -39,43 +39,10 @@ bench new-site <name>.localhost --db-root-password '<pwd>' --admin-password admi
 
 Naming convention: `<app-name>.localhost` (e.g. `expense_tracker.localhost`).
 
-## Useful site commands
+## Other site commands
 
-```bash
-# Set as default site
-bench use <site>
-
-# Drop a site (DESTRUCTIVE — ask user first)
-bench drop-site <site> --db-root-password '<pwd>'
-
-# Backup
-bench --site <site> backup
-
-# Restore
-bench --site <site> restore <backup-path>
-
-# Clear cache
-bench --site <site> clear-cache
-
-# Access mariadb console (for debugging only)
-bench --site <site> mariadb
-
-# Interactive Python console with site context
-bench --site <site> console
-
-# Run arbitrary Python non-interactively
-bench --site <site> execute frappe.utils.get_url
-bench --site <site> execute myapp.api.some_function --kwargs '{"arg1": "value"}'
-```
+See [bench-operations.md](./bench-operations.md). Ask the user before you drop a site.
 
 ## Site config
 
 Per-site config lives in `sites/<site>/site_config.json`. Global config in `sites/common_site_config.json`.
-
-```bash
-# Set site-level config
-bench --site <site> set-config <key> <value>
-
-# Set global config
-bench set-config -g <key> <value>
-```

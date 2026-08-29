@@ -119,10 +119,7 @@ website_route_rules = [
 ]
 ```
 
-## Common patterns
-
-- Hook functions are dotted paths to importable Python functions
-- Keep hook functions in dedicated files (e.g. `overrides/`, `tasks.py`)
+Keep hook functions in dedicated files (e.g. `overrides/`, `tasks.py`).
 
 ## Other useful hooks
 

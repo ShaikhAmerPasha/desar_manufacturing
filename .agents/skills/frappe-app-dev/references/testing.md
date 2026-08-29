@@ -32,8 +32,6 @@ class TestExpense(IntegrationTestCase):
 Key patterns:
 - Inherit from `frappe.tests.IntegrationTestCase` (not `unittest.TestCase`)
 - Tests run inside a transaction that rolls back — no manual cleanup needed
-- Use `frappe.get_doc(...)` to create test documents
-- Each test method starts with `test_`
 
 ## Unit tests (no database)
 
@@ -88,13 +86,9 @@ bench --site <site> run-tests --module <app>.<module>.doctype.<doctype>.test_<do
 
 # Specific test method
 bench --site <site> run-tests --module <app>.<module>.doctype.<doctype>.test_<doctype> --test test_expense_creation
-
-# With verbose output
-bench --site <site> run-tests --app <app-name> -v
 ```
 
 ## Common pitfalls
 
-- Always pass `--site`. Never run bare `bench run-tests`.
 - If tests fail with "DocType not found", run `bench --site <site> migrate` first.
 - Test files must be named `test_*.py` to be discovered.

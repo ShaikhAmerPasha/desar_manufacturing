@@ -15,14 +15,7 @@ frappe.enqueue(
 )
 ```
 
-The function must be importable:
-```python
-# apps/myapp/myapp/tasks.py
-import frappe
-
-def send_report(report_name):
-    # ... generate and send report
-```
+The function must be importable, for example from `apps/myapp/myapp/tasks.py`.
 
 ## Queue types
 

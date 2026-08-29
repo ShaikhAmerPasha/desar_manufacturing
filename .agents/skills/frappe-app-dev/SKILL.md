@@ -55,5 +55,3 @@ Load ONLY the references needed for the current task:
 | Testing          | Writing & running tests                      | [testing.md](./references/testing.md)                   |
 | Frontend & UI    | Desk UI, Vue SPA, portal pages           | [frontend.md](./references/frontend.md) (router → 3 sub-files) |
 | Bench CLI        | All bench commands reference                 | [bench-operations.md](./references/bench-operations.md) |
-
-## Important: Do NOT load all references at once. Read only what the current task requires.

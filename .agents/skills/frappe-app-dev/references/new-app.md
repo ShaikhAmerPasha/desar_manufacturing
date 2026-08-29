@@ -1,17 +1,6 @@
 # New App Workflow
 
-Follow these steps in order. Do not skip steps.
-
-## Checklist
-```
-- [ ] Step 1: Confirm bench root
-- [ ] Step 2: Enable developer mode
-- [ ] Step 3: Pick or create site
-- [ ] Step 4: Create app
-- [ ] Step 5: Install app on site
-- [ ] Step 6: Build features
-- [ ] Step 7: Migrate and verify
-```
+Follow these steps in order.
 
 ## Step 1: Confirm bench root
 
@@ -28,9 +17,7 @@ bench set-config -g developer_mode 1
 
 ## Step 3: Pick or create site
 
-See [site-management.md](./site-management.md) for finding or creating a site.
-
-Complete this step before proceeding. You need a working site first.
+See [site-management.md](./site-management.md) for finding or creating a site. A working site is a prerequisite for the next steps.
 
 ## Step 4: Create app
 
@@ -47,16 +34,10 @@ Example:
 printf 'Expense Tracker\nTrack expenses\nJohn\njohn@example.com\nmit\nN\nN\nN\n' | bench new-app expense_tracker
 ```
 
-Verify:
-```bash
-ls apps/<app-name>
-```
-
 ## Step 5: Install app on site
 
 ```bash
 bench --site <site> install-app <app-name>
-bench --site <site> list-apps  # verify
 ```
 
 ## Step 6: Build features
@@ -83,9 +64,7 @@ bench --site <site> migrate
 ```
 
 **Rules:**
-- Always pass `--site <site>` explicitly. Never run bare `bench migrate`.
-- After migration succeeds, do NOT query the database directly to verify schema changes. Frappe's migrate output is the source of truth.
-- If migrate fails with `SyntaxError`, fix the file first, then re-run.
+- After migration succeeds, do NOT query the database directly to verify schema changes. The migrate output is the source of truth.
 
 Start bench in background if not already running:
 ```bash

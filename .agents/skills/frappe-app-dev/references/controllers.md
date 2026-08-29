@@ -90,12 +90,6 @@ frappe.throw("Message", frappe.ValidationError)  # with exception type
 frappe.session.user  # email of logged-in user
 ```
 
-### Set field values
-```python
-def before_save(self):
-    self.full_name = f"{self.first_name} {self.last_name}"
-```
-
 ### Interact with other DocTypes
 ```python
 def on_submit(self):
