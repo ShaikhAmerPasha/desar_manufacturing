@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Desar Manufacturing",
+ "name": "Roll Inspection Movement",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "from_grade",
+  "to_grade",
+  "qty",
+  "reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "from_grade",
+   "fieldtype": "Data",
+   "label": "From Grade",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "to_grade",
+   "fieldtype": "Data",
+   "label": "To Grade",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "Qty",
+   "reqd": 1,
+   "non_negative": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Link",
+   "label": "Reason",
+   "options": "Inspection Reason",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  }
+ ],
+ "links": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "permissions": [],
+ "istable": 1,
+ "editable_grid": 1
+}

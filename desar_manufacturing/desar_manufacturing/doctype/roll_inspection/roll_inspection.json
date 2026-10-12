@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Desar Manufacturing",
+ "name": "Roll Inspection",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "naming_series",
+  "roll_ticket",
+  "stage",
+  "inspection_date",
+  "column_break_a",
+  "work_order",
+  "production_beam",
+  "inspector",
+  "grades_section",
+  "opening",
+  "movements",
+  "adjustments",
+  "closing",
+  "total_pieces",
+  "remarks",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "RI-.YYYY.-.#####",
+   "default": "RI-.YYYY.-.#####",
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "roll_ticket",
+   "fieldtype": "Link",
+   "label": "Roll Ticket",
+   "options": "Roll Ticket",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "stage",
+   "fieldtype": "Link",
+   "label": "Stage",
+   "options": "Inspection Stage",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "inspection_date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "default": "Today",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "options": "Work Order",
+   "read_only": 1,
+   "fetch_from": "roll_ticket.work_order",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "production_beam",
+   "fieldtype": "Link",
+   "label": "Beam",
+   "options": "Production Beam",
+   "read_only": 1,
+   "fetch_from": "roll_ticket.production_beam"
+  },
+  {
+   "fieldname": "inspector",
+   "fieldtype": "Link",
+   "label": "Inspector",
+   "options": "User"
+  },
+  {
+   "fieldname": "grades_section",
+   "fieldtype": "Section Break",
+   "label": "Grades"
+  },
+  {
+   "fieldname": "opening",
+   "fieldtype": "Table",
+   "label": "Opening (from previous stage)",
+   "options": "DESAR QI Grade Reading",
+   "read_only": 1
+  },
+  {
+   "fieldname": "movements",
+   "fieldtype": "Table",
+   "label": "Grade Movements",
+   "options": "Roll Inspection Movement"
+  },
+  {
+   "fieldname": "adjustments",
+   "fieldtype": "Table",
+   "label": "Loss / Count Differences",
+   "options": "Roll Inspection Adjustment"
+  },
+  {
+   "fieldname": "closing",
+   "fieldtype": "Table",
+   "label": "Closing Counts",
+   "options": "DESAR QI Grade Reading"
+  },
+  {
+   "fieldname": "total_pieces",
+   "fieldtype": "Int",
+   "label": "Total Pieces",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "Roll Inspection",
+   "read_only": 1,
+   "no_copy": 1,
+   "print_hide": 1
+  }
+ ],
+ "links": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "submit": 1,
+   "cancel": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "share": 1
+  },
+  {
+   "role": "DESAR Supervisor",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "submit": 1,
+   "cancel": 1
+  },
+  {
+   "role": "DESAR QC Inspector",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "submit": 1
+  },
+  {
+   "role": "DESAR Operator",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "submit": 1
+  }
+ ],
+ "is_submittable": 1,
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field",
+ "search_fields": "roll_ticket,stage,work_order",
+ "title_field": "roll_ticket"
+}

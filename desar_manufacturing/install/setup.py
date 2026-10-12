@@ -5,6 +5,8 @@ Creates default DESAR Settings if not exist.
 import frappe
 from frappe import _
 
+from desar_manufacturing.install.defaults import seed_inspection_defaults, seed_piece_wip_warehouse
+
 
 def after_install():
     """Run after app is installed on a site."""
@@ -51,6 +53,8 @@ def after_migrate():
                         message=frappe.get_traceback()
                     )
 
+    seed_inspection_defaults()
+    seed_piece_wip_warehouse()
     frappe.db.commit()
 
 

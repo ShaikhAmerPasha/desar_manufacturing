@@ -59,16 +59,28 @@
       "options": "Quality Inspection",
       "read_only": 1,
       "description": "QI document that provided this grade count"
+    },
+    {
+      "fieldname": "roll_inspection",
+      "fieldtype": "Link",
+      "label": "Roll Inspection",
+      "options": "Roll Inspection",
+      "read_only": 1
     }
   ],
   "permissions": [
     {
       "role": "System Manager",
-      "read": 1, "write": 1, "create": 1, "delete": 1
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
     },
     {
       "role": "Manufacturing Manager",
-      "read": 1, "write": 1, "create": 1
+      "read": 1,
+      "write": 1,
+      "create": 1
     }
   ]
 }

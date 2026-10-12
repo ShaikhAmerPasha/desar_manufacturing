@@ -24,6 +24,7 @@ qty-rounding below; design-context/warehouse autofill needed the same fix.
 import frappe
 from frappe import _
 
+from desar_manufacturing.utils.process_mode import is_piece_based_design
 from desar_manufacturing.utils.validation_utils import round_up_if_needed
 
 
@@ -53,6 +54,8 @@ def before_validate(doc, method=None):
     _round_wo_qty(doc)
     _round_required_items_qty(doc)
     _autofill_design_context(doc)
+    if is_piece_based_design(doc.get("custom_design_master")):
+        return
     _autofill_warehouses(doc)
     _apply_skip_transfer(doc)
 
@@ -94,6 +97,8 @@ def validate(doc, method=None):
     warehouses, and our before_validate pass ran before that — re-applying
     here lets our stage-specific values win over a generic core default."""
     _autofill_design_context(doc)
+    if is_piece_based_design(doc.get("custom_design_master")):
+        return
     _autofill_warehouses(doc)
     _apply_skip_transfer(doc)
     # ERPNext's own WorkOrder.validate() checks required_qty for whole-number

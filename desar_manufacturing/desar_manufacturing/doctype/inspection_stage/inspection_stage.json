@@ -1,0 +1,91 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Desar Manufacturing",
+ "name": "Inspection Stage",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "stage_name",
+  "sequence",
+  "entry_mode",
+  "is_final"
+ ],
+ "fields": [
+  {
+   "fieldname": "stage_name",
+   "fieldtype": "Data",
+   "label": "Stage Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sequence",
+   "fieldtype": "Int",
+   "label": "Sequence",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "entry_mode",
+   "fieldtype": "Select",
+   "label": "Entry Mode",
+   "options": "Count\nMovement\nReal Count",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Count: inspector types grade counts. Movement: counts copied from the previous stage, inspector records moves. Real Count: like Movement, then the real counted pieces are typed."
+  },
+  {
+   "fieldname": "is_final",
+   "fieldtype": "Check",
+   "label": "Final Stage",
+   "in_list_view": 1
+  }
+ ],
+ "links": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "share": 1
+  },
+  {
+   "role": "DESAR Supervisor",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  },
+  {
+   "role": "DESAR QC Inspector",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  },
+  {
+   "role": "DESAR Operator",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  }
+ ],
+ "autoname": "field:stage_name",
+ "naming_rule": "By fieldname",
+ "title_field": "stage_name"
+}

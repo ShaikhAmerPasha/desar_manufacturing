@@ -8,6 +8,8 @@
  "field_order": [
   "naming_series",
   "roll_batch",
+  "work_order",
+  "production_beam",
   "roll_status",
   "roll_no",
   "column_break_1",
@@ -44,8 +46,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Roll Batch",
-   "options": "Batch",
-   "reqd": 1
+   "options": "Batch"
   },
   {
    "fieldname": "roll_status",
@@ -165,6 +166,20 @@
    "fieldtype": "HTML",
    "label": "Grade Adjustment",
    "options": "<div id=\"desar-grade-adj\"></div>"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "options": "Work Order",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "production_beam",
+   "fieldtype": "Link",
+   "label": "Production Beam",
+   "options": "Production Beam",
+   "in_standard_filter": 1
   }
  ],
  "modified": "2026-05-01 00:00:00.000000",
@@ -211,9 +226,9 @@
    "write": 1
   }
  ],
- "search_fields": "roll_batch,design_no,article_name",
+ "search_fields": "roll_batch,design_no,article_name,work_order",
  "sort_field": "modified",
  "sort_order": "DESC",
- "title_field": "roll_batch",
+ "title_field": "name",
  "track_changes": 1
 }

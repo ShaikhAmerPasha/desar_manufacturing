@@ -32,6 +32,7 @@
   "bom_level_4",
   "section_status",
   "is_active",
+  "process_version",
   "section_stage_config",
   "stage_configuration",
   "size_configuration"
@@ -217,6 +218,14 @@
    "fieldtype": "Table",
    "label": "Size Configuration",
    "options": "Design Size Config"
+  },
+  {
+   "fieldname": "process_version",
+   "fieldtype": "Select",
+   "label": "Process Version",
+   "options": "Legacy\nPiece Based",
+   "default": "Legacy",
+   "description": "Piece Based: one Work Order per product, beams and rolls tracked as records, 2 Stock Entries."
   }
  ],
  "links": [],

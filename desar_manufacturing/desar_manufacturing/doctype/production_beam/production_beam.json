@@ -1,0 +1,125 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Desar Manufacturing",
+ "name": "Production Beam",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "naming_series",
+  "work_order",
+  "parent_production_beam",
+  "length_m",
+  "workstation",
+  "column_break_a",
+  "planned_rolls",
+  "planned_pieces",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "BEAM-.YYYY.-.####",
+   "default": "BEAM-.YYYY.-.####",
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "options": "Work Order",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "parent_production_beam",
+   "fieldtype": "Link",
+   "label": "Parent Beam",
+   "options": "Production Beam"
+  },
+  {
+   "fieldname": "length_m",
+   "fieldtype": "Float",
+   "label": "Length (m)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "Loom / Workstation",
+   "options": "Workstation",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "planned_rolls",
+   "fieldtype": "Int",
+   "label": "Planned Rolls"
+  },
+  {
+   "fieldname": "planned_pieces",
+   "fieldtype": "Int",
+   "label": "Planned Pieces"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Planned\nIn Progress\nCompleted",
+   "default": "Planned",
+   "in_list_view": 1
+  }
+ ],
+ "links": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "share": 1
+  },
+  {
+   "role": "DESAR Supervisor",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  },
+  {
+   "role": "DESAR QC Inspector",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  },
+  {
+   "role": "DESAR Operator",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  }
+ ],
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field",
+ "title_field": "name"
+}
