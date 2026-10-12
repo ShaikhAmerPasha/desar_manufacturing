@@ -174,3 +174,9 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - 50 beams and 1000 rolls on one Work Order: create beams 0.08s, create rolls 1.7s, issue materials 0.23s, close order 0.27s (after replacing the per-roll lookups in `final_grade_totals` with one SQL query; before, 100 rolls took 0.37s and grew linearly). Each inspection save and submit takes about 60 ms, 3 per roll, so 1000 rolls of inspections take about 3 minutes in total, spread over the shop floor. Supervisor assign screen (`inspection_candidates`) 1.3s and Piece WIP report 0.3s at 1000 rolls.
 - [x] Indexes on `work_order`, `production_beam`, `roll_ticket`, `stage`, `parent_production_beam` of Roll Ticket, Roll Inspection and Production Beam (verified with `information_schema`).
 - Limit: `inspection_candidates` runs queries per roll; rewrite as one query if it passes about 5000 open rolls.
+
+### Phase 7 — cleanup and documentation
+- [x] Removed `services/temp_script.py` (unreferenced). Checked the new code for hard-coded item, warehouse, stage and company names: none.
+- [x] `PIECE_BASED_GUIDE.md`: setup for a new company, day to day steps, known limits.
+- [ ] Not done on purpose: removing the legacy flow (stage configuration, roll chain, per-roll Work Orders). `tzamun` still has one submitted DESAR Production Order on it. Remove after it is closed and the legacy Design Masters are switched.
+- [ ] Not done: Playwright end-to-end suite (API, service and browser checks cover the flows). Phase 1 to 3 Desk forms were never opened in a browser (no Administrator login).
