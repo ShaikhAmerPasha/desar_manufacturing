@@ -187,3 +187,9 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] All six new reports run without error (0 rows, no data yet).
 - [x] The existing legacy DESAR Production Order (DESAR-PO-2026-00007, 2 roll chains) opens with no script errors.
 - Still not exercised in a browser: Production Process and Production Beam forms, the tablet Job Card screen, and the Final inspection screen.
+
+### Warp recipe restructure and Playwright suite
+- [x] Warp Recipe Item gained Seq, Kind (Body, Selvedge, Flower, Border), Block Repeats and computed Total Ends; Warp Recipe gained Applicable Sizes and Missing Ends. `total_ends` is the computed sum (blocks x repeats), duplicate rows give a warning. The Work Order Sheet print shows the sections. Existing recipes and rate-based quantities still work (4 new tests, 356 total pass).
+- [x] Playwright suite in `e2e/` (root `package.json`, `playwright.config.js`): worker sees only the assigned inspection and submits it, a worker cannot call a supervisor action, supervisor assigns a roll and the worker then sees it, Arabic switches to right to left. Seed and teardown in `desar_manufacturing/e2e_seed.py`; run with `E2E_SITE=<site> npx playwright test` (uses the installed Chrome; set `E2E_CHANNEL=chromium` elsewhere). 4 of 4 pass on `tzamun`, data removed afterwards.
+- [ ] `.github/workflows/ui-tests.yml` written but never run (no way to run GitHub Actions here), like `run-tests.yml`.
+- Still open: yarn kg formula (ends x length x weight per metre) needs factory input; weft kg per piece the same.
