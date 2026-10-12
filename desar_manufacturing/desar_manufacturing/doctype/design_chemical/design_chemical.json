@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Desar Manufacturing",
+ "name": "Design Chemical",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "item_code",
+  "qty_per_piece",
+  "size_code"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Chemical Item",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 4
+  },
+  {
+   "fieldname": "qty_per_piece",
+   "fieldtype": "Float",
+   "label": "Qty per Piece",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "size_code",
+   "fieldtype": "Data",
+   "label": "Size (blank = all)",
+   "in_list_view": 1,
+   "columns": 2
+  }
+ ],
+ "links": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "permissions": [],
+ "istable": 1,
+ "editable_grid": 1
+}

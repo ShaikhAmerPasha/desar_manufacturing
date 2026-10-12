@@ -6,12 +6,13 @@ from frappe import _
 from erpnext.manufacturing.doctype.work_order.work_order import make_stock_entry
 
 from desar_manufacturing.config.settings_manager import SettingsManager
-from desar_manufacturing.services import piece_bom_service
+from desar_manufacturing.services import grade_item_service, piece_bom_service
 
 
 def create_work_order(design_master: str, size_code: str, qty: int, sales_order: str = None) -> str:
     bom = piece_bom_service.create_bom(design_master, size_code)
     item = frappe.db.get_value("BOM", bom, "item")
+    grade_item_service.ensure_grade_items(item)
     design = frappe.db.get_value("Design Master", design_master, ["design_no", "article_name"], as_dict=True)
     work_order = frappe.get_doc({
         "doctype": "Work Order", "production_item": item, "bom_no": bom, "qty": qty,

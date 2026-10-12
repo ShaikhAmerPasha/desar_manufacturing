@@ -6,7 +6,7 @@ from desar_manufacturing.tests.piece_fixtures import PIECES, PieceBasedTestCase
 
 def make_workstation(name: str) -> str:
     if not frappe.db.exists("Workstation", name):
-        frappe.get_doc({"doctype": "Workstation", "workstation_name": name, "hour_rate": 10}).insert(
+        frappe.get_doc({"doctype": "Workstation", "workstation_name": name, "hour_rate_labour": 10}).insert(
             ignore_permissions=True)
     return name
 

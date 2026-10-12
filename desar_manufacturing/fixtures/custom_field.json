@@ -112,5 +112,15 @@
   "insert_after": "work_order",
   "in_list_view": 1,
   "search_index": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Job Card-custom_actual_consumption",
+  "dt": "Job Card",
+  "fieldname": "custom_actual_consumption",
+  "fieldtype": "Table",
+  "options": "Job Card Consumption",
+  "label": "Materials Actually Used",
+  "insert_after": "custom_production_beam"
  }
 ]

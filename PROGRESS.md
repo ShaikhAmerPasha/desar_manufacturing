@@ -147,3 +147,11 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] Tests: 327 total on `tzamun`, all pass; test data rolled back, Manufacturing Settings restored.
 - Findings: Work Order submit schedules Job Cards through capacity planning and fails for workstations without working hours, so `piece_order_service` switches planning off only around that submit. ERPNext checks operation order by cumulative completed quantity, not per beam: a later operation cannot complete more pieces in total than the earlier one has completed.
 - [ ] Browser check of Phase 1 and Phase 2 forms still pending (needs a logged-in session).
+
+### Phase 3 — materials per operation, actual consumption, stage cost, grade items
+- [x] Production Process steps declare a material group (Warp Yarn, Weft Yarn, Chemicals, Packing); piece based BOM rows are tagged with that step's operation. Weft rows come from the Weft Recipe (`rate_kg_per_piece` added), chemicals from a new Design Master table (`Design Chemical`, per piece, optional size).
+- [x] Actual consumption: `Job Card Consumption` table on Job Card (`custom_actual_consumption`). Close Order consumes the recorded quantity (error if more than issued); output value is split on the consumed cost; unused material stays in the WIP warehouse.
+- [x] Report `Piece Order Cost`: material cost (tagged to operation, actual when recorded) plus labour and machine cost from Job Cards, per operation with totals.
+- [x] `grade_item_service`: creates missing grade items as plain stock items, prices sellable grades at their valuation percent of the Grade A selling price. Called when a Work Order is created.
+- [x] Tests: 334 total on `tzamun`, all pass, no test data left.
+- Note: Workstation `hour_rate` is computed from its labour, electricity and other rate fields; cost reports need those set on real workstations.

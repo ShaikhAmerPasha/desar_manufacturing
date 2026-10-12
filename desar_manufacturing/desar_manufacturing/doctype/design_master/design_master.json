@@ -34,6 +34,7 @@
   "is_active",
   "process_version",
   "production_process",
+  "chemicals",
   "section_stage_config",
   "stage_configuration",
   "size_configuration"
@@ -234,6 +235,12 @@
    "label": "Production Process",
    "options": "Production Process",
    "description": "Operations used when generating piece based BOMs."
+  },
+  {
+   "fieldname": "chemicals",
+   "fieldtype": "Table",
+   "label": "Chemicals",
+   "options": "Design Chemical"
   }
  ],
  "links": [],

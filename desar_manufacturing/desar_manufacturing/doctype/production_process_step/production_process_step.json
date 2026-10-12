@@ -13,7 +13,8 @@
   "operation",
   "workstation",
   "time_in_mins",
-  "uses_beam_workstation"
+  "uses_beam_workstation",
+  "material_group"
  ],
  "fields": [
   {
@@ -57,6 +58,14 @@
    "description": "Job Cards take the workstation of the beam they belong to.",
    "in_list_view": 1,
    "columns": 1
+  },
+  {
+   "fieldname": "material_group",
+   "fieldtype": "Select",
+   "label": "Consumes",
+   "options": "\nWarp Yarn\nWeft Yarn\nChemicals\nPacking",
+   "in_list_view": 1,
+   "description": "Materials of this group are charged to this step."
   }
  ],
  "links": [],

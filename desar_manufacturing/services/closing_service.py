@@ -68,19 +68,50 @@ def _final_closing(roll: str):
 def _build_manufacture_entry(order, totals: dict):
     entry = frappe.get_doc(make_stock_entry(order.name, "Manufacture", order.qty))
     entry.items = [row for row in entry.items if row.s_warehouse]
+    _apply_actual_usage(entry.items, order.name)
     for row in entry.items:
         row.set_basic_rate_manually = 0
-    cost = _transferred_cost(order.name)
+    cost = _consumed_cost(order.name, entry.items)
     for row in _grade_rows(order, totals, cost):
         entry.append("items", row)
     entry.fg_completed_qty = order.qty
     return entry
 
 
-def _transferred_cost(work_order: str) -> float:
+def actual_usage(work_order: str) -> dict:
+    """Quantities recorded on submitted Job Cards, per item."""
+    rows = frappe.db.sql(
+        """select c.item_code, sum(c.qty) from `tabJob Card Consumption` c
+        join `tabJob Card` j on j.name = c.parent
+        where j.work_order = %s and j.docstatus = 1 group by c.item_code""", work_order)
+    return {item: flt(qty) for item, qty in rows}
+
+
+def _apply_actual_usage(rows, work_order: str) -> None:
+    usage = actual_usage(work_order)
+    for row in rows:
+        if row.item_code not in usage:
+            continue
+        used = usage[row.item_code]
+        if used > flt(row.qty) + 0.0001:
+            frappe.throw(_("{0}: {1} used but only {2} issued. Issue the extra quantity first.").format(
+                row.item_code, used, row.qty))
+        row.qty = used
+        row.transfer_qty = used * flt(row.conversion_factor or 1)
+
+
+def transfer_rates(work_order: str) -> dict:
+    """Average issue rate per item over the Work Order's material transfers."""
     entries = _transfer_entries(work_order)
-    return flt(frappe.db.sql(
-        "select sum(basic_amount) from `tabStock Entry Detail` where parent in %s", [entries])[0][0])
+    rows = frappe.db.sql(
+        """select item_code, sum(basic_amount) / sum(qty) from `tabStock Entry Detail`
+        where parent in %s group by item_code""", [entries])
+    return {item: flt(rate) for item, rate in rows}
+
+
+def _consumed_cost(work_order: str, rows) -> float:
+    rates = transfer_rates(work_order)
+    return sum(flt(row.qty) * rates.get(row.item_code, 0) for row in rows)
 
 
 def _grade_rows(order, totals: dict, cost: float) -> list:
