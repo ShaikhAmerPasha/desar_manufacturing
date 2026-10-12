@@ -164,3 +164,8 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] Browser check on `localhost:8000` with temporary users: worker login lands on the app, sees only the assigned inspection, submits it (saved and submitted in the database); supervisor sees the next-stage candidate on the assign screen; Arabic switches to right-to-left. Temporary users and records were deleted afterwards.
 - Not browser-tested: the Job Card screen (no draft Job Card exists on `tzamun` to use without touching real data; covered by API tests) and the Desk forms of Phase 1 to 3 (no Administrator login available).
 - Note: `frappe.only_for` is skipped while tests run, so the shop floor role gate checks roles directly.
+
+### Phase 5 — reports
+- [x] Script reports: Piece Order Yield (by Work Order or Roll: total, sellable, scrap, process loss, count gain, yield %, scrap %), Grade Movements (upgrade or downgrade by stage and reason), Process Loss by Reason, Piece WIP (rolls by last inspection stage, open Job Cards by operation), Sales Order Production (Work Orders of a Sales Order with beams, rolls, finished, sellable, scrap). Shared SQL in `utils/report_queries.py`.
+- [x] Tests: 352 total on `tzamun`, all pass.
+- Note: DESAR Production Order stays as is for the legacy flow; the Sales Order Production report is the piece based summary.
