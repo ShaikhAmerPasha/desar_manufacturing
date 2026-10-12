@@ -64,3 +64,9 @@ class TestPieceBasedCycle(PieceBasedTestCase):
         value = sum(row.qty * row.basic_rate for row in entry.items if row.t_warehouse)
         self.assertAlmostEqual(value, 20 * 10 + PIECES * 2, places=1)
         self.assertEqual(frappe.db.get_value("Work Order", order, "status"), "Completed")
+
+    def test_material_flagged_out_of_manufacturing_on_the_item_is_still_issued(self):
+        frappe.db.set_value("Item", self.box, "include_item_in_manufacturing", 0)
+        order = self.make_order()
+        entry = frappe.get_doc("Stock Entry", piece_order_service.issue_materials(order))
+        self.assertIn(self.box, [row.item_code for row in entry.items])

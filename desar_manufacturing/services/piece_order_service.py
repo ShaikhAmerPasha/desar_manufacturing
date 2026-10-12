@@ -24,6 +24,8 @@ def create_work_order(design_master: str, size_code: str, qty: int, sales_order:
         "custom_design_no": design.design_no, "custom_article_name": design.article_name,
     })
     work_order.get_items_and_operations_from_bom()
+    for row in work_order.required_items:
+        row.include_item_in_manufacturing = 1  # every BOM material is issued, whatever the item master says
     work_order.insert(ignore_permissions=True)
     with _capacity_planning_off():
         work_order.submit()
