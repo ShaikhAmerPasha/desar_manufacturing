@@ -37,13 +37,15 @@
    "options": "Work Order",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "search_index": 1
   },
   {
    "fieldname": "parent_production_beam",
    "fieldtype": "Link",
    "label": "Parent Beam",
-   "options": "Production Beam"
+   "options": "Production Beam",
+   "search_index": 1
   },
   {
    "fieldname": "length_m",

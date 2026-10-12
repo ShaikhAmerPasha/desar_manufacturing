@@ -169,3 +169,8 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] Script reports: Piece Order Yield (by Work Order or Roll: total, sellable, scrap, process loss, count gain, yield %, scrap %), Grade Movements (upgrade or downgrade by stage and reason), Process Loss by Reason, Piece WIP (rolls by last inspection stage, open Job Cards by operation), Sales Order Production (Work Orders of a Sales Order with beams, rolls, finished, sellable, scrap). Shared SQL in `utils/report_queries.py`.
 - [x] Tests: 352 total on `tzamun`, all pass.
 - Note: DESAR Production Order stays as is for the legacy flow; the Sales Order Production report is the piece based summary.
+
+### Phase 6 — load test and indexes (measured on `tzamun`, rolled back)
+- 50 beams and 1000 rolls on one Work Order: create beams 0.08s, create rolls 1.7s, issue materials 0.23s, close order 0.27s (after replacing the per-roll lookups in `final_grade_totals` with one SQL query; before, 100 rolls took 0.37s and grew linearly). Each inspection save and submit takes about 60 ms, 3 per roll, so 1000 rolls of inspections take about 3 minutes in total, spread over the shop floor. Supervisor assign screen (`inspection_candidates`) 1.3s and Piece WIP report 0.3s at 1000 rolls.
+- [x] Indexes on `work_order`, `production_beam`, `roll_ticket`, `stage`, `parent_production_beam` of Roll Ticket, Roll Inspection and Production Beam (verified with `information_schema`).
+- Limit: `inspection_candidates` runs queries per roll; rewrite as one query if it passes about 5000 open rolls.

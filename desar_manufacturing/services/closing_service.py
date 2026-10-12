@@ -6,6 +6,7 @@ from frappe.utils import flt
 
 from desar_manufacturing.config.settings_manager import SettingsManager
 from desar_manufacturing.services.repack_service import RepackService
+from desar_manufacturing.utils import report_queries
 from desar_manufacturing.utils.cost_split import split_cost
 
 
@@ -41,28 +42,17 @@ def _transfer_entries(work_order: str) -> list:
 
 
 def final_grade_totals(work_order: str) -> dict:
-    rolls = frappe.get_all("Roll Ticket", {"work_order": work_order}, pluck="name")
+    rolls = frappe.get_all("Roll Ticket", filters={"work_order": work_order}, pluck="name")
     if not rolls:
         frappe.throw(_("{0} has no rolls.").format(work_order))
-    totals, missing = {}, []
-    for roll in rolls:
-        closing = _final_closing(roll)
-        if closing is None:
-            missing.append(roll)
-            continue
-        for grade, qty in closing.items():
-            totals[grade] = totals.get(grade, 0) + qty
+    rows = report_queries.final_grade_rows(work_order=work_order)
+    missing = sorted(set(rolls) - {row.roll_ticket for row in rows})
     if missing:
-        frappe.throw(_("Final inspection is not submitted for: {0}").format(", ".join(missing)))
+        frappe.throw(_("Final inspection is not submitted for: {0}").format(", ".join(missing[:10])))
+    totals = {}
+    for row in rows:
+        totals[row.grade_code] = totals.get(row.grade_code, 0) + int(row.qty or 0)
     return totals
-
-
-def _final_closing(roll: str):
-    for name in frappe.get_all("Roll Inspection", {"roll_ticket": roll, "docstatus": 1}, pluck="name"):
-        inspection = frappe.get_doc("Roll Inspection", name)
-        if frappe.db.get_value("Inspection Stage", inspection.stage, "is_final"):
-            return {row.grade_code: int(row.qty or 0) for row in inspection.closing}
-    return None
 
 
 def _build_manufacture_entry(order, totals: dict):
