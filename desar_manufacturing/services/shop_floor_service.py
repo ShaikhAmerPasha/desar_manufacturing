@@ -63,6 +63,21 @@ def _inspection_task(name: str):
             "subtitle": doc.stage, "status": "Waiting"}
 
 
+def get_job_card(name: str) -> dict:
+    require_assignment(JOB_CARD, name)
+    card = frappe.get_doc(JOB_CARD, name)
+    order = frappe.db.get_value("Work Order", card.work_order, ["qty", "production_item"], as_dict=True)
+    materials = frappe.get_all("Work Order Item", filters={"parent": card.work_order, "operation": card.operation},
+                               fields=["item_code", "item_name", "required_qty", "stock_uom"])
+    return {
+        "name": card.name, "operation": card.operation, "workstation": card.workstation,
+        "beam": card.custom_production_beam, "qty": card.for_quantity, "started_at": card.custom_started_at,
+        "docstatus": card.docstatus, "work_order": card.work_order,
+        "materials": [{"item_code": m.item_code, "item_name": m.item_name, "uom": m.stock_uom,
+                       "planned_qty": m.required_qty * card.for_quantity / order.qty} for m in materials],
+    }
+
+
 def start_job(job_card: str) -> None:
     require_assignment(JOB_CARD, job_card)
     if frappe.db.get_value(JOB_CARD, job_card, "custom_started_at"):
@@ -166,6 +181,20 @@ def _clear_assignments(doctype: str, name: str) -> None:
 def assigned_names_for(doctype: str, name: str) -> list:
     return frappe.get_all("ToDo", filters={"reference_type": doctype, "reference_name": name, "status": "Open"},
                           pluck="allocated_to")
+
+
+def inspection_candidates() -> list:
+    """Rolls ready for their next inspection stage and not yet assigned."""
+    _require_supervisor()
+    stages = frappe.get_all("Inspection Stage", fields=["name", "sequence"], order_by="sequence")
+    candidates = []
+    for roll in frappe.get_all("Roll Ticket", filters={"work_order": ["is", "set"]}, fields=["name", "work_order"]):
+        done = set(frappe.get_all(INSPECTION, filters={"roll_ticket": roll.name, "docstatus": 1}, pluck="stage"))
+        upcoming = next((stage for stage in stages if stage.name not in done), None)
+        if upcoming and not frappe.db.exists(INSPECTION, {"roll_ticket": roll.name, "stage": upcoming.name,
+                                                          "docstatus": 0}):
+            candidates.append({"roll_ticket": roll.name, "stage": upcoming.name, "work_order": roll.work_order})
+    return candidates
 
 
 def unassigned_tasks() -> list:

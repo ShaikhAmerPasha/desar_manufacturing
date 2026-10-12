@@ -90,3 +90,10 @@ app_include_css = [
 ]
 app_include_js = "/assets/desar_manufacturing/js/desar.js"
 
+
+website_route_rules = [
+    {"from_route": "/shop-floor/<path:app_path>", "to_route": "shop_floor"},
+    {"from_route": "/shop-floor", "to_route": "shop_floor"},
+]
+
+role_home_page = {"DESAR Factory Worker": "shop-floor"}

@@ -143,3 +143,7 @@ class TestGradeRowsApi(FrappeTestCase):
         from desar_manufacturing.services.inspection_service import get_grade_rows
         with self.assertRaises(frappe.ValidationError):
             get_grade_rows(self.roll, "Finishing")
+
+    def test_grades_are_listed_best_first(self):
+        from desar_manufacturing.services.inspection_service import configured_grades
+        self.assertEqual([code for code, _label in configured_grades()][:1], ["A"])

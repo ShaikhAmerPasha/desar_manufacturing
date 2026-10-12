@@ -155,3 +155,12 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] `grade_item_service`: creates missing grade items as plain stock items, prices sellable grades at their valuation percent of the Grade A selling price. Called when a Work Order is created.
 - [x] Tests: 334 total on `tzamun`, all pass, no test data left.
 - Note: Workstation `hour_rate` is computed from its labour, electricity and other rate fields; cost reports need those set on real workstations.
+
+### Phase 4 — tablet app, assignment, permissions, Arabic
+- [x] Role `DESAR Factory Worker` (no Desk access, home page `/shop-floor`). Workers hold no document permissions: every action goes through `api/shop_floor.py`, which checks the role and that the Job Card or Roll Inspection is assigned to them (ToDo), then runs with system rights. Supervisors assign work (`assign_job_card`, `assign_inspection`); reassigning moves the task.
+- [x] Job Card start and finish by workers (`custom_started_at` field, time log from start to finish, materials actually used recorded on the Job Card). Roll Inspection save and submit by workers.
+- [x] Tablet app in `frontend/` (Vue 3, frappe-ui 0.1.278, Tailwind 3): tasks by station, job screen, inspection screen (Count, Movement, Real Count modes with live closing counts and difference reasons), supervisor assignment screen, English and Arabic with right-to-left layout. Build: `cd frontend && npm install && npx vite build` (output `public/frontend` and `www/shop_floor.html`, both git-ignored).
+- [x] Tests: 346 total on `tzamun`, all pass (11 new API tests cover assignment, permissions, reassigning, role gate, job and inspection flows).
+- [x] Browser check on `localhost:8000` with temporary users: worker login lands on the app, sees only the assigned inspection, submits it (saved and submitted in the database); supervisor sees the next-stage candidate on the assign screen; Arabic switches to right-to-left. Temporary users and records were deleted afterwards.
+- Not browser-tested: the Job Card screen (no draft Job Card exists on `tzamun` to use without touching real data; covered by API tests) and the Desk forms of Phase 1 to 3 (no Administrator login available).
+- Note: `frappe.only_for` is skipped while tests run, so the shop floor role gate checks roles directly.

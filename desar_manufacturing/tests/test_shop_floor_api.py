@@ -111,3 +111,19 @@ class TestShopFloorApi(PieceBasedTestCase):
 
     def test_worker_role_has_no_desk_access(self):
         self.assertEqual(frappe.db.get_value("Role", "DESAR Factory Worker", "desk_access"), 0)
+
+    def test_job_card_detail_lists_planned_materials_of_its_operation(self):
+        self.assign(self.cards[0], self.worker)
+        self.as_user(self.worker)
+        detail = shop_floor.get_job_card(self.cards[0])
+        self.assertEqual((detail["operation"], detail["qty"], detail["started_at"]), ("TEST-SF-Weaving", PIECES, None))
+        self.assertIsInstance(detail["materials"], list)
+
+    def test_inspection_candidates_follow_stage_order(self):
+        roll = make_roll_ticket()
+        frappe.db.set_value("Roll Ticket", roll, "work_order", frappe.db.get_value("Job Card", self.cards[0], "work_order"))
+        self.as_user(self.supervisor)
+        mine = [c for c in shop_floor.inspection_candidates() if c["roll_ticket"] == roll]
+        self.assertEqual([c["stage"] for c in mine], ["Gray"])
+        shop_floor.assign_inspection(roll, "Gray", self.worker)
+        self.assertEqual([c for c in shop_floor.inspection_candidates() if c["roll_ticket"] == roll], [])

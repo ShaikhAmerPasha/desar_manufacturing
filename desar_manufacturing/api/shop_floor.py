@@ -70,3 +70,15 @@ def assign_job_card(job_card: str, user: str) -> None:
 def assign_inspection(roll_ticket: str, stage: str, user: str) -> str:
     _allowed()
     return service.assign_inspection(roll_ticket, stage, user)
+
+
+@frappe.whitelist()
+def get_job_card(name: str) -> dict:
+    _allowed()
+    return service.get_job_card(name)
+
+
+@frappe.whitelist()
+def inspection_candidates() -> list:
+    _allowed()
+    return service.inspection_candidates()

@@ -20,7 +20,8 @@ def configured_grades() -> list:
     grades = SettingsManager.get_grade_configuration()
     if not grades:
         frappe.throw(_("Configure grades in DESAR Settings, Grade Configuration."))
-    return [(grade.grade_code, grade.grade_label or grade.grade_code) for grade in grades]
+    best_first = sorted(grades, key=lambda grade: (-(grade.valuation_pct or 0), grade.grade_code))
+    return [(grade.grade_code, grade.grade_label or grade.grade_code) for grade in best_first]
 
 
 def counts_of(rows) -> dict:

@@ -5,3 +5,6 @@
 tags
 node_modules
 __pycache__
+# Built shop floor app (run: cd frontend && npm install && npx vite build)
+desar_manufacturing/public/frontend
+desar_manufacturing/www/shop_floor.html
