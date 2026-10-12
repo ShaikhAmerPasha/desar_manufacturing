@@ -4,14 +4,93 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "istable": 1,
- "field_order": ["yarn_item","yarn_count","color","ends","rate_kg_per_piece","qty_kg"],
+ "field_order": [
+  "yarn_item",
+  "block_repeats",
+  "kind",
+  "sequence",
+  "yarn_count",
+  "color",
+  "ends",
+  "row_total_ends",
+  "rate_kg_per_piece",
+  "qty_kg"
+ ],
  "fields": [
-  {"fieldname":"yarn_item","fieldtype":"Link","label":"Yarn Item","options":"Item","reqd":1,"in_list_view":1},
-  {"fieldname":"yarn_count","fieldtype":"Data","label":"Yarn Count","in_list_view":1,"description":"e.g. 34/2, 100/2"},
-  {"fieldname":"color","fieldtype":"Data","label":"Color","in_list_view":1},
-  {"fieldname":"ends","fieldtype":"Int","label":"Ends","in_list_view":1},
-  {"fieldname":"rate_kg_per_piece","fieldtype":"Float","label":"Rate (Kg/Piece)","in_list_view":1,"description":"Optional. If set, Qty (Kg) is auto-computed as Rate × parent's Planned Qty."},
-  {"fieldname":"qty_kg","fieldtype":"Float","label":"Qty (Kg)","reqd":1,"in_list_view":1}
+  {
+   "fieldname": "yarn_item",
+   "fieldtype": "Link",
+   "label": "Yarn Item",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "yarn_count",
+   "fieldtype": "Data",
+   "label": "Yarn Count",
+   "in_list_view": 1,
+   "description": "e.g. 34/2, 100/2"
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Color",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ends",
+   "fieldtype": "Int",
+   "label": "Ends",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "rate_kg_per_piece",
+   "fieldtype": "Float",
+   "label": "Rate (Kg/Piece)",
+   "in_list_view": 1,
+   "description": "Optional. If set, Qty (Kg) is auto-computed as Rate \u00d7 parent's Planned Qty."
+  },
+  {
+   "fieldname": "qty_kg",
+   "fieldtype": "Float",
+   "label": "Qty (Kg)",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sequence",
+   "fieldtype": "Int",
+   "label": "Seq",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "kind",
+   "fieldtype": "Select",
+   "label": "Kind",
+   "options": "Body\nSelvedge\nFlower\nBorder",
+   "default": "Body",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "block_repeats",
+   "fieldtype": "Int",
+   "label": "Block Repeats",
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "How many times this block of ends repeats across the warp."
+  },
+  {
+   "fieldname": "row_total_ends",
+   "fieldtype": "Int",
+   "label": "Total Ends",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1
+  }
  ],
  "modified": "2026-05-01 00:00:00.000000",
  "modified_by": "Administrator",
