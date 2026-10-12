@@ -133,7 +133,7 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] New doctypes: Inspection Stage, Inspection Reason, Roll Inspection (+ movement and adjustment child tables), Production Beam. Defaults seeded on migrate (`install/defaults.py`).
 - [x] `grade_movement.py`, `cost_split.py` (pure, unit tested), `inspection_service.py`, `piece_bom_service.py`, `piece_order_service.py`, `closing_service.py`.
 - [x] Design Master `process_version` flag; piece based Work Orders skip the legacy stage-name warehouse and skip-transfer autofill in `events/work_order.py`.
-- [x] Tests: 330 total on `tzamun` (295 existing + 35 new), all pass, no data left behind. 100-piece Work Order needs 100 boxes and no roll item; full cycle posts exactly 2 Stock Entries; B valued at 60 percent of A, C zero.
+- [x] Tests: 317 total on `tzamun` (all existing plus new ones), all pass, no data left behind. 100-piece Work Order needs 100 boxes and no roll item; full cycle posts exactly 2 Stock Entries; B valued at 60 percent of A, C zero.
 - [x] Finding: ERPNext rejects a second finished item in a Manufacture entry, so B and C go on as scrap-type rows with manual rates. Verified, total value equals material cost.
 - [ ] Browser check of the Roll Inspection form pending (needs a logged-in session).
 - Note: `DESAR Grade Configuration` on `tzamun` has C at 20 percent and not flagged scrap; tests set it in memory only. Set C as scrap before production use.
