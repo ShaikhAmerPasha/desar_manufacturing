@@ -180,3 +180,10 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] `PIECE_BASED_GUIDE.md`: setup for a new company, day to day steps, known limits.
 - [ ] Not done on purpose: removing the legacy flow (stage configuration, roll chain, per-roll Work Orders). `tzamun` still has one submitted DESAR Production Order on it. Remove after it is closed and the legacy Design Masters are switched.
 - [ ] Not done: Playwright end-to-end suite (API, service and browser checks cover the flows). Phase 1 to 3 Desk forms were never opened in a browser (no Administrator login).
+
+### Browser check of the Desk side (logged in, read-only, nothing saved)
+- [x] Roll Inspection form loads; the form script fills Gray closing rows (A, B, C) on picking a roll and stage, and Finishing without a previous inspection shows "Submit the previous inspection for this roll first."
+- [x] Design Master form shows the new fields (Process Version, Production Process, Chemicals); existing masters stay Legacy; the legacy Size Configuration and Stage Configuration tables are still there.
+- [x] All six new reports run without error (0 rows, no data yet).
+- [x] The existing legacy DESAR Production Order (DESAR-PO-2026-00007, 2 roll chains) opens with no script errors.
+- Still not exercised in a browser: Production Process and Production Beam forms, the tablet Job Card screen, and the Final inspection screen.
