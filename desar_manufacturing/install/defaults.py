@@ -39,3 +39,9 @@ def seed_piece_wip_warehouse() -> None:
     fallback = frappe.db.get_single_value("DESAR Settings", "cutting_packing_warehouse")
     if fallback:
         frappe.db.set_single_value("DESAR Settings", "piece_wip_warehouse", fallback)
+
+
+def seed_factory_worker_role() -> None:
+    if not frappe.db.exists("Role", "DESAR Factory Worker"):
+        frappe.get_doc({"doctype": "Role", "role_name": "DESAR Factory Worker", "desk_access": 0}
+                       ).insert(ignore_permissions=True)

@@ -122,5 +122,15 @@
   "options": "Job Card Consumption",
   "label": "Materials Actually Used",
   "insert_after": "custom_production_beam"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Job Card-custom_started_at",
+  "dt": "Job Card",
+  "fieldname": "custom_started_at",
+  "fieldtype": "Datetime",
+  "label": "Started At",
+  "read_only": 1,
+  "insert_after": "custom_production_beam"
  }
 ]

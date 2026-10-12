@@ -5,7 +5,9 @@ Creates default DESAR Settings if not exist.
 import frappe
 from frappe import _
 
-from desar_manufacturing.install.defaults import seed_inspection_defaults, seed_piece_wip_warehouse
+from desar_manufacturing.install.defaults import (
+    seed_factory_worker_role, seed_inspection_defaults, seed_piece_wip_warehouse,
+)
 
 
 def after_install():
@@ -55,6 +57,7 @@ def after_migrate():
 
     seed_inspection_defaults()
     seed_piece_wip_warehouse()
+    seed_factory_worker_role()
     frappe.db.commit()
 
 
