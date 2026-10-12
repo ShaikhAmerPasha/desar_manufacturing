@@ -33,7 +33,8 @@
   "section_status",
   "is_active",
   "section_stage_config",
-  "stage_configuration"
+  "stage_configuration",
+  "size_configuration"
  ],
  "fields": [
   {
@@ -210,6 +211,12 @@
    "fieldname": "is_active",
    "fieldtype": "Check",
    "label": "Active"
+  },
+  {
+   "fieldname": "size_configuration",
+   "fieldtype": "Table",
+   "label": "Size Configuration",
+   "options": "Design Size Config"
   }
  ],
  "links": [],

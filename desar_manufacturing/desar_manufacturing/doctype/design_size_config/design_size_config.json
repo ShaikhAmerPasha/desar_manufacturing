@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-30 19:11:07.494744",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "size_code",
+  "warp_recipe",
+  "chemical_qty_kg",
+  "pieces_per_roll",
+  "finished_item_a",
+  "warping_beam_variant",
+  "beam_roll_variant"
+ ],
+ "fields": [
+  {
+   "fieldname": "size_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Size Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "warp_recipe",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Warp Recipe",
+   "options": "Warp Recipe",
+   "reqd": 1
+  },
+  {
+   "fieldname": "chemical_qty_kg",
+   "fieldtype": "Float",
+   "label": "Chemical Qty (Kg)"
+  },
+  {
+   "default": "50",
+   "fieldname": "pieces_per_roll",
+   "fieldtype": "Int",
+   "label": "Pieces per Roll",
+   "reqd": 1
+  },
+  {
+   "fieldname": "finished_item_a",
+   "fieldtype": "Link",
+   "label": "Finished Item (Grade A)",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "warping_beam_variant",
+   "fieldtype": "Link",
+   "label": "Warping Beam Variant",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "beam_roll_variant",
+   "fieldtype": "Link",
+   "label": "Beam Roll Variant",
+   "options": "Item",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-30 19:11:07.494744",
+ "modified_by": "Administrator",
+ "module": "Desar Manufacturing",
+ "name": "Design Size Config",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

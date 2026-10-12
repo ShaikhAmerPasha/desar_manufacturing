@@ -26,7 +26,8 @@
   "packing_manufacture_se",
   "packing_qi",
   "packing_status",
-  "repack_se"
+  "repack_se",
+  "stages"
  ],
  "fields": [
   {
@@ -188,6 +189,12 @@
    "read_only": 1,
    "description": "Set as soon as the grade-split Repack SE is created (even in Draft), so it's never orphaned if you navigate away before submitting it.",
    "width": "120px"
+  },
+  {
+   "fieldname": "stages",
+   "fieldtype": "Table",
+   "label": "Roll Stages",
+   "options": "DESAR Roll Stage"
   }
  ],
  "index_web_pages_for_search": 0,
