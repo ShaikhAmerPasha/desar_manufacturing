@@ -10,6 +10,10 @@
   "warp_recipe",
   "chemical_qty_kg",
   "pieces_per_roll",
+  "roll_length_m",
+  "picks_per_cm",
+  "weft_recipe",
+  "flower_yarn",
   "finished_item_a",
   "warping_beam_variant",
   "beam_roll_variant"
@@ -62,6 +66,27 @@
    "label": "Beam Roll Variant",
    "options": "Item",
    "read_only": 1
+  },
+  {
+   "fieldname": "roll_length_m",
+   "fieldtype": "Float",
+   "label": "Roll Length (m)"
+  },
+  {
+   "fieldname": "picks_per_cm",
+   "fieldtype": "Float",
+   "label": "Picks per cm"
+  },
+  {
+   "fieldname": "weft_recipe",
+   "fieldtype": "Link",
+   "label": "Weft Recipe",
+   "options": "Weft Recipe"
+  },
+  {
+   "fieldname": "flower_yarn",
+   "fieldtype": "Data",
+   "label": "Flower Yarn"
   }
  ],
  "grid_page_length": 50,

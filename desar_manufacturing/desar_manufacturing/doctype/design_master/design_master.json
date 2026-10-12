@@ -33,6 +33,7 @@
   "section_status",
   "is_active",
   "process_version",
+  "production_process",
   "section_stage_config",
   "stage_configuration",
   "size_configuration"
@@ -226,6 +227,13 @@
    "options": "Legacy\nPiece Based",
    "default": "Legacy",
    "description": "Piece Based: one Work Order per product, beams and rolls tracked as records, 2 Stock Entries."
+  },
+  {
+   "fieldname": "production_process",
+   "fieldtype": "Link",
+   "label": "Production Process",
+   "options": "Production Process",
+   "description": "Operations used when generating piece based BOMs."
   }
  ],
  "links": [],

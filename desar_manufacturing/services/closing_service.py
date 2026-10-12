@@ -24,8 +24,15 @@ def _guard_closable(order) -> None:
         frappe.throw(_("Submit {0} first.").format(order.name))
     if not _transfer_entries(order.name):
         frappe.throw(_("Issue materials for {0} first.").format(order.name))
+    _guard_job_cards_done(order.name)
     if frappe.db.exists("Stock Entry", {"work_order": order.name, "purpose": "Manufacture", "docstatus": 1}):
         frappe.throw(_("{0} is already closed.").format(order.name))
+
+
+def _guard_job_cards_done(work_order: str) -> None:
+    open_cards = frappe.get_all("Job Card", filters={"work_order": work_order, "docstatus": 0}, pluck="name")
+    if open_cards:
+        frappe.throw(_("Complete Job Cards first: {0}").format(", ".join(open_cards[:5])))
 
 
 def _transfer_entries(work_order: str) -> list:

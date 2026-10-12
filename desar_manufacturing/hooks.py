@@ -34,6 +34,7 @@ fixtures = [
             "BOM-custom_article_name",
             "BOM-custom_design_master",
             "Job Card-custom_assigned_to",
+            "Job Card-custom_production_beam",
             "Production Plan-custom_production_buffer_pct",
         ]]],
     },

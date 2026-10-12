@@ -1,0 +1,16 @@
+{
+ "name": "Loom Ticket",
+ "doctype": "Print Format",
+ "doc_type": "Production Beam",
+ "module": "Desar Manufacturing",
+ "standard": "Yes",
+ "custom_format": 1,
+ "print_format_type": "Jinja",
+ "disabled": 0,
+ "default_print_language": "en",
+ "html": "{% set order = frappe.get_doc(\"Work Order\", doc.work_order) %}\n{% set design = frappe.get_doc(\"Design Master\", order.custom_design_master) if order.custom_design_master else None %}\n{% set sizes = design.size_configuration | selectattr(\"finished_item_a\", \"equalto\", order.production_item) | list if design else [] %}\n{% set size = sizes[0] if sizes else None %}\n{% set weft = frappe.get_doc(\"Weft Recipe\", size.weft_recipe) if size and size.weft_recipe else None %}\n<style>.lt td{border:1px solid #000;padding:6px 10px;font-size:14px}.lt{width:100%;border-collapse:collapse}.lt td.k{font-weight:600;width:40%}</style>\n<h3 style=\"text-align:center\">{{ _(\"Loom Ticket\") }}</h3>\n<table class=\"lt\">\n<tr><td class=\"k\">{{ _(\"Machine No.\") }}</td><td>{{ doc.workstation or \"\" }}</td></tr>\n<tr><td class=\"k\">{{ _(\"P.O No.\") }}</td><td>{{ order.sales_order or order.name }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Design No.\") }}</td><td>{{ order.custom_design_no or \"\" }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Size\") }}</td><td>{{ size.size_code if size else \"\" }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Installation Date\") }}</td><td>&nbsp;</td></tr>\n<tr><td class=\"k\">{{ _(\"Number of rolls\") }}</td><td>{{ doc.planned_rolls or \"\" }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Flower yarn\") }}</td><td>{{ size.flower_yarn if size and size.flower_yarn else \"\" }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Roll Length\") }}</td><td>{{ size.roll_length_m if size and size.roll_length_m else (((doc.length_m or 0) / doc.planned_rolls) | round(1) if doc.planned_rolls else \"\") }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Picks / cm\") }}</td><td>{{ size.picks_per_cm if size and size.picks_per_cm else \"\" }}</td></tr>\n<tr><td class=\"k\">{{ _(\"Adjusted Picks / cm\") }}</td><td>&nbsp;</td></tr>\n<tr><td class=\"k\">{{ _(\"Counted Picks / cm\") }}</td><td>&nbsp;</td></tr>\n</table>\n<br>\n<table class=\"lt\"><tr><td class=\"k\">{{ _(\"Weft Count\") }}</td><td class=\"k\">{{ _(\"Weft Color\") }}</td></tr>\n{% if weft %}{% for row in weft.weft_items %}<tr><td>{{ row.yarn_count or row.yarn_item }}</td><td>{{ row.color or \"\" }}</td></tr>{% endfor %}{% endif %}\n</table>\n<br><table class=\"lt\"><tr><td class=\"k\">{{ _(\"Signature\") }}</td><td>&nbsp;</td></tr><tr><td class=\"k\">{{ _(\"Remarks\") }}</td><td>&nbsp;</td></tr><tr><td class=\"k\">{{ _(\"Technician Signature\") }}</td><td>&nbsp;</td></tr></table>\n",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator"
+}

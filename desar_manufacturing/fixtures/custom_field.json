@@ -100,5 +100,17 @@
   "insert_after": "company",
   "default": "0",
   "description": "Extra % planned over Sales Order qty (manufacturing loss allowance). Applied to Planned Qty on save, while still in Draft."
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Job Card-custom_production_beam",
+  "dt": "Job Card",
+  "fieldname": "custom_production_beam",
+  "fieldtype": "Link",
+  "options": "Production Beam",
+  "label": "Production Beam",
+  "insert_after": "work_order",
+  "in_list_view": 1,
+  "search_index": 1
  }
 ]

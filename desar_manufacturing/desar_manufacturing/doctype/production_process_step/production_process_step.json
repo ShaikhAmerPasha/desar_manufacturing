@@ -1,0 +1,70 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Desar Manufacturing",
+ "name": "Production Process Step",
+ "owner": "Administrator",
+ "creation": "2026-10-12 00:00:00.000000",
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "sequence",
+  "operation",
+  "workstation",
+  "time_in_mins",
+  "uses_beam_workstation"
+ ],
+ "fields": [
+  {
+   "fieldname": "sequence",
+   "fieldtype": "Int",
+   "label": "Sequence",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "operation",
+   "fieldtype": "Link",
+   "label": "Operation",
+   "options": "Operation",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "Workstation",
+   "options": "Workstation",
+   "in_list_view": 1,
+   "columns": 3,
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_in_mins",
+   "fieldtype": "Float",
+   "label": "Time (mins)",
+   "default": "60",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "uses_beam_workstation",
+   "fieldtype": "Check",
+   "label": "Use Beam's Loom",
+   "description": "Job Cards take the workstation of the beam they belong to.",
+   "in_list_view": 1,
+   "columns": 1
+  }
+ ],
+ "links": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "permissions": [],
+ "istable": 1,
+ "editable_grid": 1
+}

@@ -12,6 +12,7 @@
   "naming_series",
   "work_order",
   "parent_production_beam",
+  "is_group",
   "length_m",
   "workstation",
   "column_break_a",
@@ -78,6 +79,12 @@
    "options": "Planned\nIn Progress\nCompleted",
    "default": "Planned",
    "in_list_view": 1
+  },
+  {
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "label": "Split Into Beams",
+   "read_only": 1
   }
  ],
  "links": [],

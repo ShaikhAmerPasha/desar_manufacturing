@@ -137,3 +137,13 @@ Six parallel research agents audited hooks/events, services, doctype controllers
 - [x] Finding: ERPNext rejects a second finished item in a Manufacture entry, so B and C go on as scrap-type rows with manual rates. Verified, total value equals material cost.
 - [ ] Browser check of the Roll Inspection form pending (needs a logged-in session).
 - Note: `DESAR Grade Configuration` on `tzamun` has C at 20 percent and not flagged scrap; tests set it in memory only. Set C as scrap before production use.
+
+### Phase 2 — beams, rolls, Job Cards per beam, print formats
+- [x] `Production Process` master (ordered steps with Operation, Workstation, time, "use beam's loom") linked from Design Master; piece based BOM gets its operations from it.
+- [x] `beam_service`: create beams (pieces must add up to the order quantity), split a beam into child beams, create rolls on a leaf beam (meters split evenly, machine from the beam).
+- [x] `job_card_service`: one Job Card per leaf beam per operation, quantity in pieces, weaving takes the beam's loom. Replaces the whole-order Job Cards ERPNext makes on Work Order submit; Job Card custom field `custom_production_beam`.
+- [x] Close Order refuses while Job Cards are still open.
+- [x] Print formats: Loom Ticket (on Production Beam) and Work Order Sheet (on Work Order). Render verified in tests.
+- [x] Tests: 327 total on `tzamun`, all pass; test data rolled back, Manufacturing Settings restored.
+- Findings: Work Order submit schedules Job Cards through capacity planning and fails for workstations without working hours, so `piece_order_service` switches planning off only around that submit. ERPNext checks operation order by cumulative completed quantity, not per beam: a later operation cannot complete more pieces in total than the earlier one has completed.
+- [ ] Browser check of Phase 1 and Phase 2 forms still pending (needs a logged-in session).

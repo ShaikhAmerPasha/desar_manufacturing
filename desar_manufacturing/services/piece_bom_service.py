@@ -9,6 +9,7 @@ from desar_manufacturing.config.settings_manager import SettingsManager
 def create_bom(design_master: str, size_code: str) -> str:
     design = frappe.get_doc("Design Master", design_master)
     size = _size_row(design, size_code)
+    operations = _operation_rows(design)
     existing = frappe.db.get_value(
         "BOM",
         {"item": size.finished_item_a, "custom_design_master": design.name, "docstatus": 1, "is_active": 1},
@@ -17,7 +18,8 @@ def create_bom(design_master: str, size_code: str) -> str:
         return existing
     bom = frappe.get_doc({
         "doctype": "BOM", "item": size.finished_item_a, "quantity": 1,
-        "is_default": 1, "is_active": 1, "with_operations": 0,
+        "is_default": 1, "is_active": 1, "with_operations": 1 if operations else 0,
+        "operations": operations,
         "company": SettingsManager.get_company(),
         "custom_design_master": design.name, "custom_design_no": design.design_no,
         "custom_article_name": design.article_name,
@@ -63,3 +65,11 @@ def _accessory_rows(design) -> list:
 def _bom_row(item_code: str, qty: float, warehouse: str) -> dict:
     return {"item_code": item_code, "qty": qty, "source_warehouse": warehouse,
             "uom": frappe.db.get_value("Item", item_code, "stock_uom")}
+
+
+def _operation_rows(design) -> list:
+    if not design.production_process:
+        return []
+    steps = frappe.get_doc("Production Process", design.production_process).steps
+    return [{"operation": step.operation, "workstation": step.workstation,
+             "time_in_mins": step.time_in_mins} for step in sorted(steps, key=lambda step: step.sequence)]
